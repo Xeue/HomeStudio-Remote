@@ -1,0 +1,27 @@
+{
+  "name": "homestudio-remote",
+  "version": "1.0.0",
+  "description": "Homestudio for on-site production",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xeue/HomeStudio-Remote.git"
+  },
+  "author": "Sam Chilton",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Xeue/HomeStudio-Remote/issues"
+  },
+  "homepage": "https://github.com/Xeue/HomeStudio-Remote#readme",
+  "dependencies": {
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.1",
+    "xeue-config": "^1.5.3",
+    "xeue-logs": "^1.7.5",
+    "xeue-webserver": "^1.0.5"
+  }
+}

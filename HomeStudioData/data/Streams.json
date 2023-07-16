@@ -1,0 +1,20 @@
+[
+  {
+    "Name": "Feed 1",
+    "Type": "Local Encoder",
+    "URL": "",
+    "Port": 9000
+  },
+  {
+    "Name": "Sams Laptop",
+    "Type": "Homestudio SRT",
+    "URL": "wss://srt01.nep.group/Sothebys/TX1",
+    "Port": ""
+  },
+  {
+    "Name": "Feed 3",
+    "Type": "Homestudio WebRTC",
+    "URL": "wss://demo.ovenplayer.com:3333/app/test-input-stream?transport=tcp",
+    "Port": ""
+  }
+]

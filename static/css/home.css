@@ -1,0 +1,174 @@
+html {
+   height: 100%;
+ }
+ 
+ #toggleConfig:hover {
+     opacity: 1;
+ }
+ 
+ .rotate {
+     transform: rotateZ(72deg);
+ }
+ 
+ #config {
+   position: fixed;
+   background: rgba(0,0,0,0.5);
+   opacity: 1;
+   transition: 0.3s;
+   inset: 0;
+   padding: 20px;
+ }
+ 
+ #config > section {
+   max-height: 100%;
+ }
+ 
+ #config.hidden {
+   opacity: 0;
+   pointer-events: none;
+ }
+ 
+ #loading {
+   position: fixed;
+   inset: 0;
+   background-color: rgba(0,0,0,0.5);
+   background-image: url("/media/loading.svg");
+   background-repeat: no-repeat;
+   background-position: center;
+   opacity: 1;
+   transition: 0.3s;
+ }
+ 
+ #loading.hidden {
+   opacity: 0;
+   pointer-events: none;
+ }
+ 
+ td {
+   vertical-align: middle;
+ }
+ 
+ .mainCont {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 2em;
+   justify-content: space-between;
+ }
+ 
+ #config th {
+   background-color: rgb(37, 43, 50);
+ }
+ 
+ nav.drag {
+   app-region: drag;
+ }
+ 
+ .btn {
+   app-region: no-drag;
+ }
+ 
+ .bg-title {
+   background-color: #313d48;
+ }
+ 
+ .masonry {
+   grid-template-rows: masonry;
+   columns: 35rem;
+   column-gap: 1rem;
+   display: block;
+ }
+ 
+ .masonry-2 {
+   column-count: 2;
+ }
+ 
+ .masonry-1 {
+   column-count: 1;
+ }
+ 
+ .masonry > * {
+   break-inside: avoid;
+   margin-bottom: 1rem;
+   background: #2f3a4366 !important;
+   position: relative;
+   display: flex;
+   flex-direction: column;
+   min-width: 0;
+   word-wrap: break-word;
+   border: 1px solid rgba(0,0,0,.125);
+   border-radius: 0.25rem;
+   padding: 1rem!important;
+ }
+ 
+ .masonry table {
+   margin-bottom: 0 !important;
+ }
+ 
+ #syslogHistogram {
+   visibility: hidden;
+   height: 0vh !important;
+ }
+ 
+ #syslogHistogramToggle::after {
+   content: "Show Histogram";
+ }
+ 
+ .showHistogram table[data-catagory="syslog"] {
+   display: none;
+   top: 100vh;
+ }
+ 
+ .showHistogram #syslogHistogram {
+   visibility: visible;
+   height: 60vh !important;
+ }
+ 
+ .showHistogram #syslogHistogramToggle::after {
+   content: "Show Logs";
+ }
+ 
+ .pie {
+   --w: 50px;
+   width: var(--w);
+   aspect-ratio: 1;
+   position: relative;
+   display: inline-grid;
+   place-content: center;
+   margin: 5px;
+   text-align: right;
+   line-height: 1.1;
+ }
+ .pie:before {
+   content: "";
+   position: absolute;
+   border-radius: 50%;
+   inset: 0;
+   background: conic-gradient(var(--c) calc(var(--p)*1%),#0000 0);
+   -webkit-mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
+           mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
+ }
+ .pie:after {
+   content: "";
+   position: absolute;
+   border-radius: 50%;
+   inset: 10px;
+   background: conic-gradient(var(--ci) calc(var(--pi)*1%),#0000 0);
+   -webkit-mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
+           mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
+ }
+
+ .sourceSelect {
+   width: 300px;
+   cursor: pointer;
+ }
+
+ .sourceSelect * {
+   pointer-events: none;
+ }
+ 
+ .tabHeader {
+   position: absolute;
+   top: 10px;
+   left: 10px;
+   z-index: 1;
+ }
