@@ -40,6 +40,7 @@ const __static = path.resolve(__dirname+"/static");
 		config.default('printPings', false);
 		config.default('advancedConfig', false);
 		config.default('devMode', false);
+		config.default('homestudioKey', '');
 
 		if (!await config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
 			await config.fromCLI(path.join(__data, 'HomeStudioData', 'config.conf'));
@@ -151,6 +152,9 @@ async function doMessage(msgObj, socket) {
 		break;
 	case 'setKey':
 		config.set('homestudioKey', payload.key);
+		break;
+	case 'register':
+		logs.log('Client registered', 'A');
 		break;
 	default:
 		logObj('Unknown message', msgObj, 'W');

@@ -6,8 +6,8 @@
     "Port": 9000
   },
   {
-    "Name": "Sams Laptop",
-    "Type": "Homestudio SRT",
+    "Name": "Feed 2",
+    "Type": "Local Encoder",
     "URL": "wss://srt01.nep.group/Sothebys/TX1",
     "Port": ""
   },
@@ -15,6 +15,24 @@
     "Name": "Feed 3",
     "Type": "Homestudio WebRTC",
     "URL": "wss://demo.ovenplayer.com:3333/app/test-input-stream?transport=tcp",
+    "Port": ""
+  },
+  {
+    "Name": "Feed 4",
+    "Type": "Local Encoder",
+    "URL": "",
+    "Port": ""
+  },
+  {
+    "Name": "Feed 5",
+    "Type": "Local Encoder",
+    "URL": "",
+    "Port": ""
+  },
+  {
+    "Name": "Feed 6",
+    "Type": "Local Encoder",
+    "URL": "",
     "Port": ""
   }
 ]

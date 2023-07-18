@@ -5,6 +5,7 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
 
     <!-- Bootstrap CSS -->
     <link href="lib/bootstrap.min.css" rel="stylesheet" type="text/css">
@@ -26,6 +27,7 @@
     <script type="text/javascript" src="js/home.js"></script>
     <title>Home Studio</title>
     <link id="favicon_48" rel="icon" href="img/icon/icon.svg" sizes="256x256">
+    <link rel="manifest" href="manifest.json">
 </head>
 
 <body class="bg-dark h-100 d-flex flex-column">
@@ -42,42 +44,48 @@
 			</div>
 		</div>
 		<div role="tablist">
-			<button class="btn btn-secondary active" id="nav-one-tab" data-bs-toggle="tab" data-bs-target="#nav-one" type="button" role="tab" aria-controls="nav-one" aria-selected="true">Single Camera</button>
-			<button class="btn btn-secondary" id="nav-two-tab" data-bs-toggle="tab" data-bs-target="#nav-two" type="button" role="tab" aria-controls="nav-two" aria-selected="true">Dual Camera</button>
-			<button class="btn btn-secondary" id="nav-four-tab" data-bs-toggle="tab" data-bs-target="#nav-four" type="button" role="tab" aria-controls="nav-four" aria-selected="true">Quad Camera</button>
+			<button class="btn btn-secondary layout-btn active" id="nav-one-tab" type="button" aria-selected="true">Single Camera</button>
+			<button class="btn btn-secondary layout-btn" id="nav-two-tab" type="button" aria-selected="true">Dual Camera</button>
+			<button class="btn btn-secondary layout-btn" id="nav-four-tab" type="button" aria-selected="true">Quad Camera</button>
 		</div>
-		<button id="toggleConfig" class="btn btn-secondary">Config</button>
+        
+        <div class="d-flex gap-1">
+            <button id="installBtn" onclick="install()" class="btn btn-secondary d-none">Install</button>
+		    <button id="toggleConfig" class="btn btn-secondary">Config</button>
+        </div>
     </nav>
     <main class="tab-content container-fluid bg-dark py-3 overflow-auto d-flex">
-        <section class="flex-grow-1 tab-pane fade show mainCont masonry masonry-1 active" id="nav-one" role="tabpanel" aria-labelledby="nav-one-tab">
-            <div class="text-light brick selectedPlayer" data-type="oneCam">
-				<h4 class="tabHeader">Choose Camera</h4>
-				<div class="tabPlayer"></div>
+		<section class="flex-grow-1 masonry masonry-1 align-items-start align-content-start" id="views">
+			<div class="text-light selectedPlayer player-quad" id="camOne" data-type="oneCam">
+				<div class="d-flex justify-content-between">
+                    <h4 class="player-title" data-title="Choose First Camera">Choose First Camera</h4>
+                    <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
+                </div>
+                <div class="player-container"></div>
             </div>
-        </section>
-		<section class="flex-grow-1 tab-pane fade masonry masonry-2" id="nav-two" role="tabpanel" aria-labelledby="nav-two-tab">
-			<div class="text-light" data-type="oneCam">
-				<h4>Choose First Camera</h4>
+            <div class="text-light d-none player-quad" id="camTwo" data-type="twoCam">
+                <div class="d-flex justify-content-between">
+                    <h4 class="player-title" data-title="Choose Second Camera">Choose Second Camera</h4>
+                    <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
+                </div>
+                <div class="player-container"></div>
             </div>
-			<div class="text-light" data-type="twoCam">
-				<h4>Choose Second Camera</h4>
+            <div class="text-light d-none player-quad" id="camThree" data-type="threeCam">
+                <div class="d-flex justify-content-between">
+                    <h4 class="player-title" data-title="Choose Third Camera">Choose Third Camera</h4>
+                    <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
+                </div>
+                <div class="player-container"></div>
+            </div>
+			<div class="text-light d-none player-quad" id="camFour" data-type="fourCam">
+                <div class="d-flex justify-content-between">
+                    <h4 class="player-title" data-title="Choose Fourth Camera">Choose Fourth Camera</h4>
+                    <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
+                </div>
+                <div class="player-container"></div>
             </div>
 		</section>
-		<section class="flex-grow-1 tab-pane fade masonry masonry-2" id="nav-four" role="tabpanel" aria-labelledby="nav-four-tab">
-			<div class="text-light" data-type="oneCam">
-				<h4>Choose First Camera</h4>
-            </div>
-			<div class="text-light" data-type="twoCam">
-				<h4>Choose Second Camera</h4>
-            </div>
-			<div class="text-light" data-type="threeCam">
-				<h4>Choose Third Camera</h4>
-            </div>
-			<div class="text-light" data-type="fourCam">
-				<h4>Choose Fourth Camera</h4>
-            </div>
-		</section>
-		<aside id="tumbList" class="ps-3">
+		<aside id="tumbList" class="ps-3 overflow-auto">
 			
 		</aside>
     </main>
@@ -107,7 +115,7 @@
                     <div class="dataRaw collapse mt-3 mb-2">
                         <div id="configStreamsRaw"></div>
                     </div>
-					<div class="input-group">
+					<div class="input-group p-1">
 						<input type="text" class="form-control" id="homestudioKey" placeholder="Homestudio Stream Key" value="<%-homestudioKey%>">
 						<button class="btn btn-primary" id="homestudioKeySet">Set</button>
 					</div>

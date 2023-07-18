@@ -22,19 +22,6 @@ function socketDoOpen(socket) {
 	socket.send({'command':'register'});
 	let to = new Date().getTime()/1000;
 	let from = to - 7200;
-	socket.send({
-		'command':'get',
-		'data':'temperature',
-		'from': from,
-		'to': to
-	});
-
-	socket.send({
-		'command':'get',
-		'data':'ping',
-		'from': from,
-		'to': to
-	});
 }
 
 function socketDoMessage(header, payload) {
@@ -313,17 +300,49 @@ $(document).ready(function() {
 				"key":$('#homestudioKey').val()
 			});
 		} else if ($trg.hasClass('sourceSelect')) {
-			const $title = $trg.find('.card-title').html();
-			const $player = $trg.children('div')[0];
-			const $cont = $('.selectedPlayer .tabPlayer');
-			const $current = $cont.children().first();
-			if ($current.length > 0) {
-				$(`#${$current.attr('id')}-cont`).prepend($current);
-				$(`#${$current.attr('id')}-cont`).removeClass('d-none');
-			}
-			$cont.append($player);
-			$('.selectedPlayer h4').html($title);
-			$trg.addClass('d-none');
+			openPlayer($trg);
+		} else if ($trg.is('#nav-one-tab')) {
+			const $two = $('#camTwo');
+			const $three = $('#camThree');
+			const $four = $('#camFour');
+			$two.addClass('d-none');
+			$three.addClass('d-none');
+			$four.addClass('d-none');
+			$('#views').removeClass('masonry-2');
+			$('#views').addClass('masonry-1');
+			$('.layout-btn.active').removeClass('active');
+			$trg.addClass('active');
+			closePlayer($two);
+			closePlayer($three);
+			closePlayer($four);
+		} else if ($trg.is('#nav-two-tab')) {
+			const $two = $('#camTwo');
+			const $three = $('#camThree');
+			const $four = $('#camFour');
+			$two.removeClass('d-none');
+			$three.addClass('d-none');
+			$four.addClass('d-none');
+			$('#views').addClass('masonry-2');
+			$('#views').removeClass('masonry-1');
+			$('.layout-btn.active').removeClass('active');
+			$trg.addClass('active');
+			closePlayer($three);
+			closePlayer($four);
+		} else if ($trg.is('#nav-four-tab')) {
+			$('#camTwo').removeClass('d-none');
+			$('#camThree').removeClass('d-none');
+			$('#camFour').removeClass('d-none');
+			$('#views').addClass('masonry-2');
+			$('#views').removeClass('masonry-1');
+			$('.layout-btn.active').removeClass('active');
+			$trg.addClass('active');
+		} else if ($trg.hasClass('closePlayer')) {
+			closePlayer($trg.closest('.player-quad'));
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			$trg.closest('.player-quad').addClass('selectedPlayer');
+		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			$trg.closest('.player-quad').addClass('selectedPlayer');
 		} else {
 			players.forEach(player => player.play());
 		}
@@ -336,6 +355,30 @@ $(document).ready(function() {
 		}
 	});
 });
+
+function openPlayer($element) {
+	const $title = $element.find('.card-title').html();
+	const $player = $element.children('div')[0];
+	const $cont = $('.selectedPlayer .player-container');
+	const $current = $cont.children().first();
+	if ($current.length > 0) {
+		$(`#${$current.attr('id')}-cont`).prepend($current);
+		$(`#${$current.attr('id')}-cont`).removeClass('d-none');
+	}
+	$cont.append($player);
+	$('.selectedPlayer .player-title').html($title);
+	$element.addClass('d-none');
+}
+
+function closePlayer($element) {
+	const title = $element.find('.player-title').data('title');
+	const $player = $element.find('.player-container').children().first();
+	const playerID = $player.attr('id');
+	const $orig = $('#'+playerID+"-cont");
+	$orig.prepend($player);
+	$orig.removeClass('d-none');
+	$element.find('.player-title').html(title);
+}
 
 function getConfig(catagory) {
 	return $.getJSON(`${server}getConfig?catagory=${catagory}`);
@@ -374,7 +417,7 @@ function renderStreams() {
 	$aside = $('#tumbList');
 	$aside.html('');
 	streams.forEach(stream => {
-		$aside.append(`<div class="card text-white bg-secondary mb-2 sourceSelect" id="player-${stream.Name.replace(/ /g,'-')}-cont">
+		$aside.append(`<div class="card text-white mb-2 sourceSelect" id="player-${stream.Name.replace(/ /g,'-')}-cont">
 			<div class="thumbnail card-img-top" id="player-${stream.Name.replace(/ /g,'-')}">
 			</div>
 			<section class="py-1 px-2 playerTitle">
@@ -400,7 +443,7 @@ function renderStreams() {
 					stream_url: stream.URL + '?wmsAuthSign=' + homestudioKey,
 					splash_screen: '/img/holding.png',
 					width: 'parent',
-					height: 'auto',
+					height: 'parent',
 					muted: false,
 					sync_buffer: 1000,
 					buffering: 500,
@@ -424,4 +467,23 @@ function renderStreams() {
 				break;
 		}
 	});
+}
+
+
+
+let beforeInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", eventHandler, errorHandler);
+
+function eventHandler(event) {
+  beforeInstallPrompt = event;
+  document.getElementById("installBtn").classList.remove("d-none");
+}
+
+function errorHandler(event) {
+  console.log("error: " + event);
+}
+
+function install() {
+  if (beforeInstallPrompt) beforeInstallPrompt.prompt();
 }
