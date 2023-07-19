@@ -33,6 +33,12 @@ let configLoaded = false;
 	{ /* Config */
 		logs.printHeader('HomeStudio');
 		config.useLogger(logs);
+		config.require('host', [], 'What is the IP/host of this system?');
+		config.require('omesetup', {true: 'Done', false: 'Continue Without'}, `To run Home Studio Remote you must first intall docker and then instal Oven Media Engine in docker using this command:
+		<code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light">docker run --name ome -d -e OME_HOST_IP=localhost -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp airensoft/ovenmediaengine:latest</code>
+		(Change OME_HOST_IP from 'localhost' to the IP of this machine if required)
+		<br />
+		Confirm bellow when this has been done`);
 		config.require('port', [], 'What port shall the server use');
 		config.require('systemName', [], 'What is the name of the system/job');
 		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level');
@@ -54,6 +60,8 @@ let configLoaded = false;
 		config.default('advancedConfig', false);
 		config.default('devMode', false);
 		config.default('homestudioKey', '');
+		config.default('omesetup', false);
+		config.default('host', 'localhost');
 
 		if (!await config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
 			await config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData', 'config.conf'), configQuestion, configDone);
@@ -297,7 +305,8 @@ function expressRoutes(expressApp) {
 			systemName:config.get('systemName'),
 			version: version,
 			homestudioKey: config.get('homestudioKey'),
-			streams: streams()
+			streams: streams(),
+			host: config.get('host')
 		});
 	});
 	expressApp.get('/getConfig', (req, res) => {
@@ -359,10 +368,10 @@ function loadData(file) {
 		switch (file) {
 		case 'Streams':
 			fileData[0] = {
-				'Name':'Feed',
-				'Type':'Local',
-				'URL':'wss://srt01.nep.group/APP/STREAM',
-				'Port':9000
+				'Name':'Camera #',
+				'Type':'Local Encoder',
+				'URL':'ws://IPAddress:3333/app/camera-#',
+				'Encoder':'srt://IPAddress:9999/app?streamid=srt://IPAddress:9999/app/camera-#'
 			};
 			break;
 		default:

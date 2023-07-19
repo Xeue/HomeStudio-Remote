@@ -7,9 +7,14 @@ const players = [];
 templates.stream = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-template="stream">
     <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
-	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Local Encoder,Homestudio SRT,Homestudio WebRTC"><%-devices[i].Type%></td>
+	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,Local Encoder,Homestudio SRT,Homestudio WebRTC"><%-devices[i].Type%></td>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
-	<td data-type="text" data-key="Port" data-value="<%-devices[i].Port%>"><%-devices[i].Port%></td>
+	<td data-type="readonly" data-key="Encoder" data-value="<%-devices[i].Encoder%>">
+		<% if (devices[i].Encoder !== undefined) { %>
+			URL: <%-devices[i].Encoder%>
+			<br />Mode: Caller
+		<% } %>
+	</td>
     <td>
       <button type="button" class="btn btn-danger editConfig w-50">Edit</button>
       <button type="button" class="btn btn-danger deleteRow w-50">Delete</button>
@@ -102,6 +107,11 @@ $(document).ready(function() {
 
 	$(document).click(function(e) {
 		const $trg = $(e.target);
+		const $one = $('#camOne');
+		const $two = $('#camTwo');
+		const $three = $('#camThree');
+		const $four = $('#camFour');
+		const $views = $('#views');
 		if ($trg.is('#toggleConfig') || $trg.is('#closeConfig')) {
 			if ($('#config').hasClass('hidden')) {
 				loading(true);
@@ -199,6 +209,9 @@ $(document).ready(function() {
 					$td.append($txt);
 					break;
 				}
+				case 'readonly': {
+					break;
+				}
 				default:
 					break;
 				}
@@ -230,6 +243,8 @@ $(document).ready(function() {
 					$td.html(value);
 					data[$td.data('key')] = value;
 					break;
+				case 'readonly':
+					data[$td.data('key')] = value;
 				default:
 					break;
 				}
@@ -253,10 +268,9 @@ $(document).ready(function() {
 			dummyData[0] = {};
 			switch (template) {
 			case 'stream':
-				dummyData[0].Name = 'Feed';
-				dummyData[0].Type = 'Local Encoder';
+				dummyData[0].Name = `Camera ${index+1}`;
+				dummyData[0].Type = 'Select';
 				dummyData[0].URL = '';
-				dummyData[0].Port = '';
 				break;
 			default:
 				break;
@@ -302,39 +316,39 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('sourceSelect')) {
 			openPlayer($trg);
 		} else if ($trg.is('#nav-one-tab')) {
-			const $two = $('#camTwo');
-			const $three = $('#camThree');
-			const $four = $('#camFour');
 			$two.addClass('d-none');
 			$three.addClass('d-none');
 			$four.addClass('d-none');
-			$('#views').removeClass('masonry-2');
-			$('#views').addClass('masonry-1');
+			$views.removeClass('masonry-2');
+			$views.addClass('masonry-1');
 			$('.layout-btn.active').removeClass('active');
 			$trg.addClass('active');
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			$one.addClass('selectedPlayer');
 			closePlayer($two);
 			closePlayer($three);
 			closePlayer($four);
 		} else if ($trg.is('#nav-two-tab')) {
-			const $two = $('#camTwo');
-			const $three = $('#camThree');
-			const $four = $('#camFour');
 			$two.removeClass('d-none');
 			$three.addClass('d-none');
 			$four.addClass('d-none');
-			$('#views').addClass('masonry-2');
-			$('#views').removeClass('masonry-1');
+			$views.addClass('masonry-2');
+			$views.removeClass('masonry-1');
 			$('.layout-btn.active').removeClass('active');
 			$trg.addClass('active');
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			$two.addClass('selectedPlayer');
 			closePlayer($three);
 			closePlayer($four);
 		} else if ($trg.is('#nav-four-tab')) {
-			$('#camTwo').removeClass('d-none');
-			$('#camThree').removeClass('d-none');
-			$('#camFour').removeClass('d-none');
-			$('#views').addClass('masonry-2');
-			$('#views').removeClass('masonry-1');
+			$two.removeClass('d-none');
+			$three.removeClass('d-none');
+			$four.removeClass('d-none');
+			$views.addClass('masonry-2');
+			$views.removeClass('masonry-1');
 			$('.layout-btn.active').removeClass('active');
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			$three.addClass('selectedPlayer');
 			$trg.addClass('active');
 		} else if ($trg.hasClass('closePlayer')) {
 			closePlayer($trg.closest('.player-quad'));
@@ -343,15 +357,30 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
-		} else {
-			players.forEach(player => player.play());
+		} else if (!$trg.hasClass('player-quad') && !$trg.parents('.player-quad').length) {
+			$('.selectedPlayer').removeClass('selectedPlayer');
 		}
+		players.forEach(player => player.play());
 	});
 
 	$(document).change(function(e) {
 		const $trg = $(e.target);
 		if ($trg.is('#csvUpload')) {
 			$('.tableImport').attr('disabled',$trg.val()=='');
+		} else if ($trg.is('select[name="Type"]')) {
+			const index = $trg.closest('tr').data('index');
+			const $encoder = $trg.parent().siblings('[data-key="Encoder"]').first();
+			const $urlTD = $trg.parent().siblings('[data-key="URL"]').first();
+			const $url = $urlTD.children().first();
+			if ($trg.val() == "Local Encoder") {
+				$encoder.html(`URL: srt://${host}:9999/app?streamid=srt://${host}:9999/app/feed${index+1}
+				<br />Mode: Caller`);
+				$encoder.data('value', `srt://${host}:9999/app?streamid=srt://${host}:9999/app/feed${index+1}`);
+				$url.val(`ws://${host}:3333/app/feed${index+1}`);
+				$urlTD.data('value', `ws://${host}:3333/app/feed${index+1}`);
+			} else {
+				$encoder.html('');
+			}
 		}
 	});
 });
@@ -426,13 +455,20 @@ function renderStreams() {
 		</div>`);
 		let player;
 		switch (stream.Type) {
+			case 'Local Encoder':
 			case 'Homestudio WebRTC':				
 				player = OvenPlayer.create('player-'+stream.Name.replace(/ /g,'-'), {
 					sources:[{
 						label: stream.Name,
 						type: 'webrtc',
 						file: stream.URL
-					}]
+					}],
+					image: '/img/holding.png',
+					autoStart: true,
+					controls: false,
+					disableSeekUI: true,
+					showBigPlayButton: false,
+					timecode: false
 				});
 				players.push(player);
 				player.play();
@@ -451,17 +487,6 @@ function renderStreams() {
 				};
 				console.log(options)
 				SLDP.init(options);
-				break;
-			case 'Local Encoder':
-				player = OvenPlayer.create('player-'+stream.Name.replace(/ /g,'-'), {
-					sources:[{
-						label: stream.Name,
-						type: 'webrtc',
-						file: stream.URL
-					}]
-				});
-				players.push(player);
-				player.play();
 				break;
 			default:
 				break;

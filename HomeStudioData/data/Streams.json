@@ -1,38 +1,26 @@
 [
   {
-    "Name": "Feed 1",
+    "Name": "Camera 1",
     "Type": "Local Encoder",
-    "URL": "",
-    "Port": 9000
+    "URL": "ws://192.168.0.27:3333/app/feed1",
+    "Encoder": "srt://localhost:9999/app?streamid=srt://localhost:9999/app/feed1"
   },
   {
-    "Name": "Feed 2",
+    "Name": "Camera 2",
     "Type": "Local Encoder",
-    "URL": "wss://srt01.nep.group/Sothebys/TX1",
-    "Port": ""
+    "URL": "ws://192.168.0.27:3333/app/feed2",
+    "Encoder": "srt://localhost:9999/app?streamid=srt://localhost:9999/app/feed2"
   },
   {
-    "Name": "Feed 3",
-    "Type": "Homestudio WebRTC",
-    "URL": "wss://demo.ovenplayer.com:3333/app/test-input-stream?transport=tcp",
-    "Port": ""
+    "Name": "Camera 3",
+    "Type": "Local Encoder",
+    "URL": "ws://192.168.0.27:3333/app/feed3",
+    "Encoder": "srt://localhost:9999/app?streamid=srt://localhost:9999/app/feed3"
   },
   {
-    "Name": "Feed 4",
+    "Name": "Camera 4",
     "Type": "Local Encoder",
-    "URL": "",
-    "Port": ""
-  },
-  {
-    "Name": "Feed 5",
-    "Type": "Local Encoder",
-    "URL": "",
-    "Port": ""
-  },
-  {
-    "Name": "Feed 6",
-    "Type": "Local Encoder",
-    "URL": "",
-    "Port": ""
+    "URL": "ws://192.168.0.27:3333/app/feed4",
+    "Encoder": "srt://localhost:9999/app?streamid=srt://localhost:9999/app/feed4"
   }
 ]

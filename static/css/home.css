@@ -158,11 +158,15 @@ nav.drag {
 }
 
 .sourceSelect {
-  width: 300px;
   cursor: pointer;
   overflow: hidden;
   background-color: rgb(49, 61, 72);
   border: solid 2px rgb(49, 61, 72);
+  max-width: 300px;
+  min-width: 120px;
+  width: 15vw;
+  opacity: 1;
+  transition: 0.3s;
 }
 
 .sourceSelect * {
@@ -182,4 +186,33 @@ nav.drag {
 
 .selectedPlayer {
   outline: rgba(25, 117, 234, 0.67) solid 5px;
+}
+
+#tumbList {
+  padding-left: 1rem !important;
+  transition: 0.3s;
+}
+
+@supports(selector(:has(p))) {
+  .sourceSelect {
+      max-width: 0px;
+      min-width: 0px;
+      width: 0;
+      opacity: 0;
+  }
+  
+  #tumbList {
+      padding-left: 0rem !important;
+  }
+  
+  main:has(.selectedPlayer) aside .sourceSelect {
+      max-width: 300px;
+      min-width: 120px;
+      width: 15vw;
+      opacity: 1;
+  }
+  
+  main:has(.selectedPlayer) aside#tumbList {
+      padding-left: 1rem !important;
+  }
 }

@@ -15,6 +15,7 @@
         const currentSystem = "<%=systemName%>";
         const version = '<%=version%>';
 		const homestudioKey = '<%=homestudioKey%>';
+        const host = '<%=host%>';
 		let streams = <%- JSON.stringify(streams) %>;
     </script>
     <script type="text/javascript" src="lib/jquery-3.6.0.min.js"></script>
@@ -85,13 +86,13 @@
                 <div class="player-container"></div>
             </div>
 		</section>
-		<aside id="tumbList" class="ps-3 overflow-auto">
+		<aside id="tumbList" class="overflow-auto">
 			
 		</aside>
     </main>
     
     <article id="config" class="overflow-auto hidden pt-5">
-        <section class="bg-dark text-light alert text-nowrap container flex-column d-flex mb-0">
+        <section class="bg-dark text-light alert text-nowrap flex-column d-flex mb-0">
             <div class="row mt-2">
                 <h3 class="w-50">Edit Streams</h3>
             </div>
@@ -105,7 +106,7 @@
                                     <th class="">Name</th>
                                     <th class="">Type</th>
 									<th class="">URL</th>
-                                    <th class="">Port</th>
+                                    <th class="">Encoder Details</th>
                                     <th class=""></th>
                                 </tr>
                             </thead>
@@ -116,7 +117,7 @@
                         <div id="configStreamsRaw"></div>
                     </div>
 					<div class="input-group p-1">
-						<input type="text" class="form-control" id="homestudioKey" placeholder="Homestudio Stream Key" value="<%-homestudioKey%>">
+						<input type="text" class="form-control" id="homestudioKey" placeholder="Homestudio Stream Key (only for remote SRT feeds)" value="<%-homestudioKey%>">
 						<button class="btn btn-primary" id="homestudioKeySet">Set</button>
 					</div>
                 </div>
