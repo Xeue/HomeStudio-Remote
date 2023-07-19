@@ -169,6 +169,10 @@ nav.drag {
   pointer-events: none;
 }
 
+.sourceSelect > div {
+  border-radius: 3px;
+}
+
 .tabHeader {
   position: absolute;
   top: 10px;

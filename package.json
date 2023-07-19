@@ -1,10 +1,34 @@
 {
   "name": "homestudio-remote",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Homestudio for on-site production",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.xeue.homestudio",
+    "productName": "Home Studio",
+    "files": [
+      "**/*",
+      "static/*"
+    ],
+    "win": {
+      "icon": "static/img/icon/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "HomeStudio-v${version}.exe"
+    }
   },
   "repository": {
     "type": "git",
@@ -17,11 +41,17 @@
   },
   "homepage": "https://github.com/Xeue/HomeStudio-Remote#readme",
   "dependencies": {
+    "auto-launch": "^5.0.6",
     "ejs": "^3.1.9",
+    "electron-ejs": "^1.2.1",
     "express": "^4.18.2",
     "node-fetch": "^3.3.1",
     "xeue-config": "^1.5.3",
     "xeue-logs": "^1.7.5",
     "xeue-webserver": "^1.0.5"
+  },
+  "devDependencies": {
+    "electron": "^25.2.0",
+    "electron-builder": "^24.4.0"
   }
 }
