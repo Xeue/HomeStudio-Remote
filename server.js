@@ -35,7 +35,7 @@ let configLoaded = false;
 		config.useLogger(logs);
 		config.require('host', [], 'What is the IP/host of this system?');
 		config.require('omesetup', {true: 'Done', false: 'Continue Without'}, `To run Home Studio Remote you must first intall docker and then instal Oven Media Engine in docker using this command:
-		<code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light">docker run --name ome -d -e OME_HOST_IP=localhost -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp airensoft/ovenmediaengine:latest</code>
+		<code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">docker run --name ome -d -e OME_HOST_IP=localhost -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp airensoft/ovenmediaengine:latest</code>
 		(Change OME_HOST_IP from 'localhost' to the IP of this machine if required)
 		<br />
 		Confirm bellow when this has been done`);
