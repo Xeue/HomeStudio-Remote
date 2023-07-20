@@ -389,6 +389,7 @@ function openPlayer($element) {
 	const $title = $element.find('.card-title').html();
 	const $player = $element.children('div')[0];
 	const $cont = $('.selectedPlayer .player-container');
+	if ($('.selectedPlayer').length < 1) return;
 	const $current = $cont.children().first();
 	if ($current.length > 0) {
 		$(`#${$current.attr('id')}-cont`).prepend($current);

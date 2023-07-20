@@ -13,7 +13,7 @@ const AutoLaunch = require('auto-launch');
 
 let webServer;
 const __main = path.resolve(__dirname);
-const __data = path.resolve(__dirname);
+const __data = path.resolve(app.getPath('documents'));
 const __static = path.resolve(__dirname+"/static");
 
 const ejs = new electronEjs({'static': __static}, {});
