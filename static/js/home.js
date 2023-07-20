@@ -11,7 +11,8 @@ templates.stream = `<% for(i = 0; i < devices.length; i++) { %>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
 	<td data-type="readonly" data-key="Encoder" data-value="<%-devices[i].Encoder%>">
 		<% if (devices[i].Encoder !== undefined) { %>
-			URL: <%-devices[i].Encoder%>
+			Address: <%-devices[i].Encoder.split('?streamid=')[0]%>
+			<br />StreamID: <%-devices[i].Encoder.split('?streamid=')[1]%>
 			<br />Mode: Caller
 		<% } %>
 	</td>
@@ -373,9 +374,10 @@ $(document).ready(function() {
 			const $urlTD = $trg.parent().siblings('[data-key="URL"]').first();
 			const $url = $urlTD.children().first();
 			if ($trg.val() == "Local Encoder") {
-				$encoder.html(`URL: srt://${host}:9999/app?streamid=srt://${host}:9999/app/feed${index+1}
+				$encoder.html(`Address: ${host}:9999/app
+				<br />StreamID: srt://${host}:9999/app/feed${index+1}
 				<br />Mode: Caller`);
-				$encoder.data('value', `srt://${host}:9999/app?streamid=srt://${host}:9999/app/feed${index+1}`);
+				$encoder.data('value', `${host}:9999/app?streamid=srt://${host}:9999/app/feed${index+1}`);
 				$url.val(`ws://${host}:3333/app/feed${index+1}`);
 				$urlTD.data('value', `ws://${host}:3333/app/feed${index+1}`);
 			} else {

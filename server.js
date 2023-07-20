@@ -255,7 +255,7 @@ async function configQuestion(question, current, options) {
 			if (value == 'true') value = true;
 			if (value == 'false') value = false;
 			const newVal = parseInt(value);
-			if (!isNaN(newVal)) value = newVal;
+			if (!isNaN(newVal) && (value.match(/./g) || []).length < 2) value = newVal;
 			resolve(value);
 		});
 	});
