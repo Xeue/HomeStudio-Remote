@@ -215,4 +215,11 @@ nav.drag {
   main:has(.selectedPlayer) aside#tumbList {
       padding-left: 1rem !important;
   }
+
+  #appHome .sourceSelect {
+    max-width: 300px;
+    min-width: 200px;
+    width: 20vw;
+    opacity: 1;
+  }
 }

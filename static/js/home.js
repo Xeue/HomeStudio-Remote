@@ -326,9 +326,9 @@ $(document).ready(function() {
 			$trg.addClass('active');
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$one.addClass('selectedPlayer');
-			closePlayer($two);
-			closePlayer($three);
-			closePlayer($four);
+			closePlayer($two.find('.player-container').children().first());
+			closePlayer($three.find('.player-container').children().first());
+			closePlayer($four.find('.player-container').children().first());
 		} else if ($trg.is('#nav-two-tab')) {
 			$two.removeClass('d-none');
 			$three.addClass('d-none');
@@ -339,8 +339,8 @@ $(document).ready(function() {
 			$trg.addClass('active');
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$two.addClass('selectedPlayer');
-			closePlayer($three);
-			closePlayer($four);
+			closePlayer($three.find('.player-container').children().first());
+			closePlayer($four.find('.player-container').children().first());
 		} else if ($trg.is('#nav-four-tab')) {
 			$two.removeClass('d-none');
 			$three.removeClass('d-none');
@@ -352,7 +352,7 @@ $(document).ready(function() {
 			$three.addClass('selectedPlayer');
 			$trg.addClass('active');
 		} else if ($trg.hasClass('closePlayer')) {
-			closePlayer($trg.closest('.player-quad'));
+			closePlayer($trg.closest('.player-quad').find('.player-container').children().first());
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
@@ -385,31 +385,99 @@ $(document).ready(function() {
 			}
 		}
 	});
+
+	setInterval(() => {
+		for (thumb of document.getElementsByClassName('thumbnail')) {
+			thumb.src = thumb.dataset.src + "?" + new Date().getTime();
+		}
+	}, 1000)
 });
 
 function openPlayer($element) {
-	const $title = $element.find('.card-title').html();
-	const $player = $element.children('div')[0];
-	const $cont = $('.selectedPlayer .player-container');
-	if ($('.selectedPlayer').length < 1) return;
-	const $current = $cont.children().first();
-	if ($current.length > 0) {
-		$(`#${$current.attr('id')}-cont`).prepend($current);
-		$(`#${$current.attr('id')}-cont`).removeClass('d-none');
+	const streamURL = $element.data('url');
+	const streamName = $element.data('name');
+	const streamType = $element.data('type');
+	const $player = $(`<div id="${streamName.replace(/ /g, '-')}-player" class="player-cont">`);
+	const $selectedCont = $('.selectedPlayer .player-container');
+
+	const $curentPlayer = $selectedCont.children().first();
+	const $newPlayer = $(`#${streamName.replace(/ /g, '-')}-player`);
+	if ($curentPlayer.length > 0) closePlayer($curentPlayer);
+	if ($newPlayer.length > 0) closePlayer($newPlayer);
+
+	$selectedCont.html($player);
+	
+	const $selectedTitle = $('.selectedPlayer .player-title');
+	$selectedTitle.html(streamName);
+
+	switch (streamType) {
+		case 'Local Encoder':
+		case 'Homestudio WebRTC':				
+			const player = OvenPlayer.create(`${streamName.replace(/ /g, '-')}-player`, {
+				sources:[{
+					label: streamName,
+					type: 'webrtc',
+					file: streamURL
+				}],
+				image: '/img/holding.png',
+				autoStart: true,
+				controls: false,
+				disableSeekUI: true,
+				showBigPlayButton: false,
+				timecode: false
+			});
+			players.push(player);
+			player.play();
+			player.on('stateChanged', data => {
+				switch (data.newstate) {
+					case 'error':
+					case 'stalled':
+					case 'idle':
+						if (player.hasTimer) return
+						player.hasTimer = true;
+						player.timeout = setTimeout(() => {
+							player.hasTimer = false;
+							delete player.timeout;
+							if (player.getState() === 'playing') return;
+							player.load();
+						}, 2000);
+						break;
+					case 'complete':
+					case 'playing':
+						player.hasTimer = false;
+						clearTimeout(player.timeout);
+						delete player.timeout;
+						break;
+					default:
+						break;
+				}
+			})
+			break;
+		case 'Homestudio SRT':
+			const options = {
+				container: `${streamName.replace(/ /g, '-')}-player`,
+				stream_url: streamURL + '?wmsAuthSign=' + homestudioKey,
+				splash_screen: '/img/holding.png',
+				width: 'parent',
+				height: 'parent',
+				muted: false,
+				sync_buffer: 1000,
+				buffering: 500,
+				autoplay: true
+			};
+			SLDP.init(options);
+			break;
+		default:
+			break;
 	}
-	$cont.append($player);
-	$('.selectedPlayer .player-title').html($title);
-	$element.addClass('d-none');
 }
 
 function closePlayer($element) {
-	const title = $element.find('.player-title').data('title');
-	const $player = $element.find('.player-container').children().first();
-	const playerID = $player.attr('id');
-	const $orig = $('#'+playerID+"-cont");
-	$orig.prepend($player);
-	$orig.removeClass('d-none');
-	$element.find('.player-title').html(title);
+	const $cont = $element.closest('.player-quad');
+	const title = $cont.find('.player-title').data('title');
+	$cont.find('.player-title').html(title);
+	OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
+	$element.remove();
 }
 
 function getConfig(catagory) {
@@ -449,54 +517,22 @@ function renderStreams() {
 	$aside = $('#tumbList');
 	$aside.html('');
 	streams.forEach(stream => {
-		$aside.append(`<div class="card text-white mb-2 sourceSelect" id="player-${stream.Name.replace(/ /g,'-')}-cont">
-			<div class="thumbnail card-img-top" id="player-${stream.Name.replace(/ /g,'-')}">
-			</div>
+		$aside.append(`<div class="card text-white mb-2 sourceSelect"
+		id="player-${stream.Name.replace(/ /g,'-')}-cont"
+		data-url="${stream.URL}"
+		data-name="${stream.Name}"
+		data-type="${stream.Type}">
+			<img class="thumbnail card-img-top"
+				style="background: black;"
+				src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.png"
+				data-src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.png"
+				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 			<section class="py-1 px-2 playerTitle">
 				<h5 class="card-title">${stream.Name}</h5>
 			</section>
 		</div>`);
-		let player;
-		switch (stream.Type) {
-			case 'Local Encoder':
-			case 'Homestudio WebRTC':				
-				player = OvenPlayer.create('player-'+stream.Name.replace(/ /g,'-'), {
-					sources:[{
-						label: stream.Name,
-						type: 'webrtc',
-						file: stream.URL
-					}],
-					image: '/img/holding.png',
-					autoStart: true,
-					controls: false,
-					disableSeekUI: true,
-					showBigPlayButton: false,
-					timecode: false
-				});
-				players.push(player);
-				player.play();
-				break;
-			case 'Homestudio SRT':
-				const options = {
-					container: 'player-'+stream.Name.replace(/ /g,'-'),
-					stream_url: stream.URL + '?wmsAuthSign=' + homestudioKey,
-					splash_screen: '/img/holding.png',
-					width: 'parent',
-					height: 'parent',
-					muted: false,
-					sync_buffer: 1000,
-					buffering: 500,
-					autoplay: true
-				};
-				console.log(options)
-				SLDP.init(options);
-				break;
-			default:
-				break;
-		}
 	});
 }
-
 
 
 let beforeInstallPrompt = null;

@@ -10,6 +10,7 @@ const {version} = require('./package.json');
 const electronEjs = require('electron-ejs');
 const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
 const AutoLaunch = require('auto-launch');
+const {exec} = require('child_process');
 
 let webServer;
 const __main = path.resolve(__dirname);
@@ -17,6 +18,12 @@ const __data = path.resolve(app.getPath('documents'));
 const __static = path.resolve(__dirname+"/static");
 
 const ejs = new electronEjs({'static': __static}, {});
+
+fs.copyFile(`${__static}/ome/Server.xml`, `${__data}/ome/Server.xml`, (err) => {
+	if (err) logs.error("Couldn't create OME config", err);
+});
+
+const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${__data}/ome/:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:latest`
 
 let isQuiting = false;
 let mainWindow = null;
@@ -35,8 +42,7 @@ let configLoaded = false;
 		config.useLogger(logs);
 		config.require('host', [], 'What is the IP/host of this system?');
 		config.require('omesetup', {true: 'Done', false: 'Continue Without'}, `To run Home Studio Remote you must first intall docker and then instal Oven Media Engine in docker using this command:
-		<code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">docker run --name ome -d -e OME_HOST_IP=localhost -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp airensoft/ovenmediaengine:latest</code>
-		(Change OME_HOST_IP from 'localhost' to the IP of this machine if required)
+		<code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">${dockerCommand}</code>
 		<br />
 		Confirm bellow when this has been done`);
 		config.require('port', [], 'What port shall the server use');
@@ -102,6 +108,12 @@ let configLoaded = false;
 		configLoaded = true;
 	}
 
+	log('Creating Media Server', ['C', 'SHELL', logs.p]);
+	await shellCommandPrint(dockerCommand);
+	log('Starting Media Serverr', ['C', 'SHELL', logs.p]);
+	await shellCommandPrint('docker start ome');
+	log('Media Server Started', ['C', 'SHELL', logs.p]);
+
 	webServer = new Server(
 		config.get('port'),
 		expressRoutes,
@@ -114,7 +126,7 @@ let configLoaded = false;
 	log(`HomeStudio Local can be accessed at http://localhost:${config.get('port')}`, 'C');
 
 	webServer.start();
-	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}`);
+	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
 })().catch(error => {
 	console.log(error);
 });
@@ -233,13 +245,12 @@ async function createWindow() {
 	await new Promise(resolve => {
 		ipcMain.on('ready', (event, ready) => {
 			if (configLoaded) {
-				mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}`);
+				mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
 			}
 			resolve();
 		});
 	});
 }
-
 
 /* Config Functions */
 
@@ -271,7 +282,7 @@ async function configDone() {
 		'loggingLevel': config.get('loggingLevel'),
 		'debugLineNum': config.get('debugLineNum'),
 	});
-	if (configLoaded) mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}`);
+	if (configLoaded) mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
 	if (config.get('localDataBase')) {
 		SQL = new SQLSession(
 			config.get('dbHost'),
@@ -306,7 +317,20 @@ function expressRoutes(expressApp) {
 			version: version,
 			homestudioKey: config.get('homestudioKey'),
 			streams: streams(),
-			host: config.get('host')
+			host: config.get('host'),
+			dockerCommand: dockerCommand
+		});
+	});
+	expressApp.get('/app',  (req, res) =>  {
+		log('New client connected', 'A');
+		res.header('Content-type', 'text/html');
+		res.render('appHome', {
+			systemName:config.get('systemName'),
+			version: version,
+			homestudioKey: config.get('homestudioKey'),
+			streams: streams(),
+			host: config.get('host'),
+			dockerCommand: dockerCommand
 		});
 	});
 	expressApp.get('/getConfig', (req, res) => {
@@ -390,4 +414,23 @@ function writeData(file, data) {
 	} catch (error) {
 		logObj(`Cloud not write the file ${file}.json, do we have permission to access the file?`, error, 'E');
 	}
+}
+
+async function shellCommandPrint(command) {
+	return new Promise((resolve, reject) => {
+		const proc = exec(command, {'shell':'powershell.exe'});
+		proc.stdout.on('data', data => {
+			const output = data.trim();
+			if (output != "") log(output, ['C', 'SHELL', logs.p])
+		});
+		proc.stderr.on('data', data => {
+			log(data, ['C', 'SHELL', logs.r])
+		});
+		proc.on('exit', code => {
+			resolve(code);
+		});
+		proc.on('error', (error) => {
+			reject(error);
+		});
+	});
 }
