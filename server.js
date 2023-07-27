@@ -57,7 +57,7 @@ let configLoaded = false;
 		}
 
 		config.default('port', 8080);
-		config.default('systemName', 'Unknown');
+		config.default('systemName', 'Home Studio');
 		config.default('loggingLevel', 'W');
 		config.default('homestudioKey', '');
 		config.default('createLogFile', true);

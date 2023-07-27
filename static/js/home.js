@@ -98,10 +98,10 @@ $(document).ready(function() {
 	});
 	localConnection.addEventListener('open', () => {
 		socketDoOpen(localConnection);
-		$('#broken').html('<span class="p-2 badge badge-pill bg-success">Home Studio Online</span>');
+		$('#broken').html(`<span class="p-2 badge badge-pill bg-success">${currentSystem} Online</span>`);
 	});
 	localConnection.addEventListener('close', () => {
-		$('#broken').html('<span class="p-2 badge badge-pill bg-danger">Home Studio Offline</span>');
+		$('#broken').html(`<span class="p-2 badge badge-pill bg-danger">${currentSystem} Offline</span>`);
 	});
 
 	renderStreams();
