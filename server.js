@@ -19,11 +19,9 @@ const __static = path.resolve(__dirname+"/static");
 
 const ejs = new electronEjs({'static': __static}, {});
 
-fs.copyFile(`${__static}/ome/Server.xml`, `${__data}/ome/Server.xml`, (err) => {
-	if (err) logs.error("Couldn't create OME config", err);
-});
+const dockerConfigPath = `${path.dirname(app.getPath('exe'))}/ome/`;
+const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${dockerConfigPath}:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:latest`
 
-const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${__data}/ome/:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:latest`
 
 let isQuiting = false;
 let mainWindow = null;
@@ -40,19 +38,24 @@ let configLoaded = false;
 	{ /* Config */
 		logs.printHeader('HomeStudio');
 		config.useLogger(logs);
-		config.require('host', [], 'What is the IP/host of this system?');
-		config.require('omesetup', {true: 'Done', false: 'Continue Without'}, `To run Home Studio Remote you must first intall docker and then instal Oven Media Engine in docker using this command:
-		<code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">${dockerCommand}</code>
-		<br />
-		Confirm bellow when this has been done`);
-		config.require('port', [], 'What port shall the server use');
-		config.require('systemName', [], 'What is the name of the system/job');
-		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level');
-		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save logs to local file');
-		config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings');
+		config.require('omeType', {
+			'docker':'Docker',
+			'native':'Installed Locally',
+			'none':'Not Installed'
+		}, 'Home Studio Remote requires \'Oven Media Engine\' to be running to function, this can be done via docker on windows or installed localy if using linux.\nIf you select Docker Home Studio will try and install the image automatically.\n\nInstallation type:');
 		{
-			config.require('debugLineNum', {true: 'Yes', false: 'No'}, 'Print line numbers', ['advancedConfig', true]);
-			config.require('printPings', {true: 'Yes', false: 'No'}, 'Print pings', ['advancedConfig', true]);
+			config.info('omeNative', 'The Server.xml file created for Home Studio Remote can be found at IP:PORT/ome/Server.xml', ['omeType', 'native']);
+			config.info('omeDocker', `If setup of OME has failed try using this command manually in your command prompt: <code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">${dockerCommand}</code>`, ['omeType', 'docker']);
+		}
+		config.require('host', [], 'What is the IP/host of Oven Media Engine? (normally this machines IP)');
+		config.require('port', [], 'What port shall the server use?');
+		config.require('systemName', [], 'What is the name of the system/job?');
+		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
+		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save logs to local file?');
+		config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings?');
+		{
+			config.require('debugLineNum', {true: 'Yes', false: 'No'}, 'Print line numbers?', ['advancedConfig', true]);
+			config.require('printPings', {true: 'Yes', false: 'No'}, 'Print pings?', ['advancedConfig', true]);
 			config.require('devMode', {true: 'Yes', false: 'No'}, 'Dev mode - Disables connections to devices', ['advancedConfig', true]);
 		}
 
@@ -66,8 +69,9 @@ let configLoaded = false;
 		config.default('advancedConfig', false);
 		config.default('devMode', false);
 		config.default('homestudioKey', '');
-		config.default('omesetup', false);
+		config.default('omeType', 'docker');
 		config.default('host', 'localhost');
+
 
 		if (!await config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
 			await config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData', 'config.conf'), configQuestion, configDone);
@@ -108,11 +112,27 @@ let configLoaded = false;
 		configLoaded = true;
 	}
 
-	log('Creating Media Server', ['C', 'SHELL', logs.p]);
-	await shellCommandPrint(dockerCommand);
-	log('Starting Media Serverr', ['C', 'SHELL', logs.p]);
-	await shellCommandPrint('docker start ome');
-	log('Media Server Started', ['C', 'SHELL', logs.p]);
+	if (config.get('omeType') == 'docker') {
+		log('Updaing Media Server config', ['C', 'SERVER', logs.g]);
+		if (!fs.existsSync(dockerConfigPath)){
+			fs.mkdirSync(dockerConfigPath);
+		}
+		fs.copyFile(`${__static}/ome/Server.xml`, `${dockerConfigPath}Server.xml`, (err) => {
+			if (err) logs.error("Couldn't create OME config", err);
+		});
+	
+		log('Checking for Media Server', ['C', 'SHELL', logs.p]);
+		const dockerList = await shellCommandPrintCollect("docker container ls --format='{{.Names}}'");
+		if (!dockerList.includes('ome')) {
+			log('No server found, creating Media Server', ['C', 'SHELL', logs.p]);
+			await shellCommandPrint(dockerCommand);
+		} else {
+			log('Starting existing Media Server', ['C', 'SHELL', logs.p]);
+			await shellCommandPrint('docker start ome');
+		}
+		
+		log('Media Server Started', ['C', 'SHELL', logs.p]);
+	}
 
 	webServer = new Server(
 		config.get('port'),
@@ -429,7 +449,28 @@ async function shellCommandPrint(command) {
 		proc.on('exit', code => {
 			resolve(code);
 		});
-		proc.on('error', (error) => {
+		proc.on('error', error => {
+			reject(error);
+		});
+	});
+}
+
+async function shellCommandPrintCollect(command) {
+	return new Promise((resolve, reject) => {
+		let text = '';
+		const proc = exec(command, {'shell':'powershell.exe'});
+		proc.stdout.on('data', data => {
+			const output = data.trim();
+			text += output;
+			if (output != "") log(output, ['C', 'SHELL', logs.p])
+		});
+		proc.stderr.on('data', data => {
+			log(data, ['C', 'SHELL', logs.r])
+		});
+		proc.on('exit', () => {
+			resolve(text);
+		});
+		proc.on('error', error => {
 			reject(error);
 		});
 	});

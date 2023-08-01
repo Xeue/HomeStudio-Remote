@@ -6,10 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
 		const msgObject = JSON.parse(message);
 		const question = document.getElementById('question');
 		const answerCont = document.getElementById('answerCont');
-		question.innerHTML = msgObject.question + '?';
+		question.innerHTML = msgObject.question;
 		answerCont.setAttribute('data-current', msgObject.current);
-	
-		if (typeof msgObject.options === 'undefined') {
+		
+		if (msgObject.options === 'INFO') {
+			answerCont.classList.remove('freeform');
+			answerCont.classList.remove('select');
+			answerCont.innerHTML = '';
+		} else if (typeof msgObject.options === 'undefined') {
 			const placeholder = typeof msgObject.current == 'undefined' ? '' : msgObject.current;
 			const input = `<input type="text" id="answer" placeholder="${placeholder}">`;
 			answerCont.classList.add('freeform');
@@ -147,8 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
 		let value;
 		if (answerCont.classList.contains('freeform')) {
 			value = document.getElementById('answer').value;
-		} else {
+		} else if (answerCont.classList.contains('select')) {
 			value = document.querySelector('input[name="answer"]:checked').value;
+		} else {
+			value = 'INFO';
 		}
 
 		if (value == '') value = answerCont.getAttribute('data-current');

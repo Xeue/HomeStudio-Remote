@@ -190,3 +190,6 @@ body {
   code {
 	z-index: -1;
   }
+  #question {
+    white-space: break-spaces;
+  }
