@@ -26,15 +26,12 @@
 
 	<!-- Settings for the ports to bind -->
 	<Bind>
-		<!-- Enable this configuration if you want to use API Server -->
-		<!--
 		<Managers>
 			<API>
-				<Port>${env:OME_API_PORT:8081}</Port>
+				<Port>8081</Port>
 				<WorkerCount>1</WorkerCount>
 			</API>
 		</Managers>
-		-->
 		<Providers>
 			<!-- Pull providers -->
 			<RTSPC>
@@ -96,6 +93,20 @@
 			</Thumbnail>
 		</Publishers>
 	</Bind>
+
+	<Managers>
+		<Host>
+			<Names>
+				<Name>*</Name>
+			</Names>
+		</Host>
+		<API>
+			<AccessToken>admin:NEPVisions!</AccessToken>
+			<CrossDomains>
+				<Url>*</Url>
+			</CrossDomains>
+		</API>
+	</Managers>
 
 	<VirtualHosts>
 		<VirtualHost>
@@ -201,6 +212,8 @@
 								<Url>*</Url>
 							</CrossDomains>	
 						</LLHLS>
+						<SRTPush>
+						</SRTPush>
 					</Publishers>
 				</Application>
 			</Applications>
