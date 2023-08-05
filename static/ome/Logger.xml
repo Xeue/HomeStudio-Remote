@@ -1,0 +1,13 @@
+<Logger version="2">
+	<!-- Log file location -->
+	<Path>/opt/ovenmediaengine/bin/log/</Path>
+
+	<!-- Disable some SRT internal logs -->
+	<Tag name="Thumbnail" level="critical" />
+	<Tag name="HTTP.Server" level="critical" />
+	<Tag name="Orchestrator" level="critical" />
+	<Tag name="Publisher" level="warn" />
+
+	<!-- Log level: [debug, info, warn, error, critical] -->
+	<Tag name=".*" level="info" />
+</Logger>

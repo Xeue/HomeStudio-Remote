@@ -5,8 +5,9 @@ const templates = {};
 const players = [];
 
 templates.stream = `<% for(i = 0; i < devices.length; i++) { %>
-  <tr data-index="<%=i%>" data-template="stream">
+  <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="stream">
     <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
+	<td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
 	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,Local Encoder,Homestudio SRT,Homestudio WebRTC"><%-devices[i].Type%></td>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
 	<td data-type="readonly" data-key="Encoder" data-value="<%-devices[i].Encoder%>">
@@ -77,8 +78,15 @@ function socketDoMessage(header, payload) {
 			break;
 		}
 		break;
+	case 'feeds':
+		payload.feeds.forEach(feed => {
+			$(`.feed-title[data-id="${feed.ID}"]`).html(feed.Name);
+			$(`.sourceSelect[data-id="${feed.ID}"]`).data('name', feed.Name);
+		});
+		break;
 	default:
-
+		console.log('Unknown WS message');
+		console.log(payload);
 	}
 }
 
@@ -263,13 +271,28 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('tableNew')) {
 			const $tbody = $('table[data-editor="streams"]').find('tbody');
 			const $rows = $tbody.children();
+			let newID = 0;
+			const IDs = [];
+			console.log('here');
+			$rows.each(function(){
+				const row = $(this);
+				newID = row.data('id') > newID ? row.data('id') : newID;
+				IDs.push(row.data('id'));
+			});
+			newID++;
+			for (let index = 1; index < newID; index++) {
+				if (IDs.includes(index)) continue;
+				newID = index;
+				break;
+			}
 			const index = $rows.length;
 			const template = $tbody.data('template');
 			const dummyData = [];
 			dummyData[0] = {};
 			switch (template) {
 			case 'stream':
-				dummyData[0].Name = `Camera ${index+1}`;
+				dummyData[0].Name = `Camera ${newID}`;
+				dummyData[0].ID = newID;
 				dummyData[0].Type = 'Select';
 				dummyData[0].URL = '';
 				break;
@@ -278,6 +301,7 @@ $(document).ready(function() {
 			}
 			const $new = $(ejs.render(templates[template], {'devices': dummyData}));
 			$new.attr('data-index', index);
+			$new.attr('data-id', newID);
 			$tbody.append($new);
 			$new.find('.editConfig').trigger('click');
 		} else if ($trg.hasClass('tableSave')) {
@@ -391,17 +415,17 @@ $(document).ready(function() {
 		if ($trg.is('#csvUpload')) {
 			$('.tableImport').attr('disabled',$trg.val()=='');
 		} else if ($trg.is('select[name="Type"]')) {
-			const index = $trg.closest('tr').data('index');
+			const newID = $trg.closest('tr').data('id');
 			const $encoder = $trg.parent().siblings('[data-key="Encoder"]').first();
 			const $urlTD = $trg.parent().siblings('[data-key="URL"]').first();
 			const $url = $urlTD.children().first();
 			if ($trg.val() == "Local Encoder") {
 				$encoder.html(`Address: ${host}:9999/app
-				<br />StreamID: srt://${host}:9999/app/feed${index+1}
+				<br />StreamID: srt://${host}:9999/app/feed${newID}
 				<br />Mode: Caller`);
-				$encoder.data('value', `${host}:9999/app?streamid=srt://${host}:9999/app/feed${index+1}`);
-				$url.val(`ws://${host}:3333/app/feed${index+1}`);
-				$urlTD.data('value', `ws://${host}:3333/app/feed${index+1}`);
+				$encoder.data('value', `${host}:9999/app?streamid=srt://${host}:9999/app/feed${newID}`);
+				$url.val(`ws://${host}:3333/app/feed${newID}`);
+				$urlTD.data('value', `ws://${host}:3333/app/feed${newID}`);
 			} else {
 				$encoder.html('');
 			}
@@ -419,9 +443,10 @@ function openPlayer($element) {
 	const streamURL = $element.data('url');
 	const streamName = $element.data('name');
 	const streamType = $element.data('type');
+	const streamID = $element.data('id');
 	const $player = $(`<div id="${streamName.replace(/ /g, '-')}-player" class="player-cont">`);
-	const $selectedCont = $('.selectedPlayer .player-container');
-
+	let $selectedCont = $('.selectedPlayer .player-container');
+	if ($selectedCont.length == 0) $selectedCont = $('#camOne .player-container');
 	const $curentPlayer = $selectedCont.children().first();
 	const $newPlayer = $(`#${streamName.replace(/ /g, '-')}-player`);
 	if ($curentPlayer.length > 0) closePlayer($curentPlayer);
@@ -430,6 +455,7 @@ function openPlayer($element) {
 	$selectedCont.html($player);
 	
 	const $selectedTitle = $('.selectedPlayer .player-title');
+	$selectedTitle.attr('data-id', streamID);
 	$selectedTitle.html(streamName);
 
 	switch (streamType) {
@@ -497,8 +523,10 @@ function openPlayer($element) {
 
 function closePlayer($element) {
 	const $cont = $element.closest('.player-quad');
-	const title = $cont.find('.player-title').data('title');
-	$cont.find('.player-title').html(title);
+	const $title = $cont.find('.player-title');
+	const title = $title.data('title');
+	$title.html(title);
+	$title.data('id', '');
 	OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
 	$element.remove();
 }
@@ -542,16 +570,16 @@ function renderStreams() {
 	streams.forEach(stream => {
 		$aside.append(`<div class="card text-white mb-2 sourceSelect"
 		id="player-${stream.Name.replace(/ /g,'-')}-cont"
+		data-id="${stream.ID}"
 		data-url="${stream.URL}"
 		data-name="${stream.Name}"
 		data-type="${stream.Type}">
 			<img class="thumbnail card-img-top"
-				style="background: black;"
-				src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.png"
-				data-src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.png"
+				src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
+				data-src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 			<section class="py-1 px-2 playerTitle">
-				<h5 class="card-title">${stream.Name}</h5>
+				<h5 class="card-title feed-title" data-id="${stream.ID}">${stream.Name}</h5>
 			</section>
 		</div>`);
 	});

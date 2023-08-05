@@ -12,10 +12,6 @@
 			<Enable>true</Enable>
 		</HTTP2>
 
-		<LLHLS>
-			<Enable>true</Enable>
-		</LLHLS>
-
 		<!-- P2P works only in WebRTC and is experiment feature -->
 		<P2P>
 			<!-- disabled by default -->
@@ -70,11 +66,6 @@
 				<Port>${env:OME_ORIGIN_PORT:9000}</Port>
 				<WorkerCount>1</WorkerCount>
 			</OVT>
-			<LLHLS>
-				<Port>${env:OME_LLHLS_STREAM_PORT:3333}</Port>
-				<TLSPort>${env:OME_LLHLS_STREAM_TLS_PORT:3334}</TLSPort>
-				<WorkerCount>1</WorkerCount>
-			</LLHLS>
 			<WebRTC>
 				<Signalling>
 					<Port>${env:OME_WEBRTC_SIGNALLING_PORT:3333}</Port>
@@ -119,11 +110,11 @@
 				<Names>
 					<Name>*</Name>
 				</Names>
-				<TLS>
+				<!--<TLS>
 					<CertPath>./cert.crt</CertPath>
 					<KeyPath>./cert.key</KeyPath>
 					<ChainCertPath>./cert.ca-bundle</ChainCertPath>
-				</TLS>
+				</TLS>-->
 			</Host>
 
 			<!-- Default CORS Settings -->
@@ -143,10 +134,10 @@
 							<OutputStreamName>${OriginStreamName}</OutputStreamName>
 							<Encodes>
 								<Image>
-									<Codec>png</Codec>
+									<Codec>jpeg</Codec>
 									<Framerate>1</Framerate>
-									<Width>1280</Width>
-									<Height>720</Height>
+									<Width>854</Width>
+									<Height>480</Height>
 								</Image>
 								<Video>
 									<Name>bypass_video</Name>
@@ -201,17 +192,6 @@
 								<Url>*</Url>
 							</CrossDomains>	
 						</Thumbnail>
-						<LLHLS>
-							<OriginMode>true</OriginMode>
-							<ChunkDuration>0.5</ChunkDuration>
-							<!-- PartHoldBack SHOULD be at least three times the Part Target Duration -->
-							<PartHoldBack>1.5</PartHoldBack>
-							<SegmentDuration>6</SegmentDuration>
-							<SegmentCount>10</SegmentCount>
-							<CrossDomains>
-								<Url>*</Url>
-							</CrossDomains>	
-						</LLHLS>
 						<SRTPush>
 						</SRTPush>
 					</Publishers>

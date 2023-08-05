@@ -120,6 +120,10 @@ let configLoaded = false;
 		fs.copyFile(`${__static}/ome/Server.xml`, `${dockerConfigPath}Server.xml`, (err) => {
 			if (err) logs.error("Couldn't create OME config", err);
 		});
+
+		fs.copyFile(`${__static}/ome/Logger.xml`, `${dockerConfigPath}Logger.xml`, (err) => {
+			if (err) logs.error("Couldn't create OME logging config", err);
+		});
 	
 		log('Checking for Media Server', ['C', 'SHELL', logs.p]);
 		const dockerList = await shellCommandPrintCollect("docker container ls --format='{{.Names}}'");
@@ -369,6 +373,10 @@ function expressRoutes(expressApp) {
 
 	expressApp.post('/setstreams', (req, res) => {
 		log('Request to set streams config data', 'D');
+		webServer.sendToAll({
+			"command":"feeds",
+			"feeds":req.body
+		});
 		writeData('Streams', req.body);
 		res.send('Done');
 	});
@@ -412,10 +420,11 @@ function loadData(file) {
 		switch (file) {
 		case 'Streams':
 			fileData[0] = {
-				'Name':'Camera #',
+				'Name':'Camera 1',
+				'ID':1,
 				'Type':'Local Encoder',
-				'URL':'ws://IPAddress:3333/app/camera-#',
-				'Encoder':'srt://IPAddress:9999/app?streamid=srt://IPAddress:9999/app/camera-#'
+				'URL':'ws://IPAddress:3333/app/feed1',
+				'Encoder':'srt://IPAddress:9999/app?streamid=srt://IPAddress:9999/app/feed1'
 			};
 			break;
 		default:
