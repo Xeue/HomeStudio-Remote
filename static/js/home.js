@@ -355,6 +355,13 @@ $(document).ready(function() {
 			closePlayer($trg.closest('.player-quad').find('.player-container').children().first());
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
+		} else if ($trg.hasClass('mutePlayer')) {
+			const $player = $trg.closest('.player-quad').find('.player-container').children().first();
+			$trg.toggleClass('muted');
+			OvenPlayer.getPlayerByContainerId($player.attr('id')).setMute($trg.hasClass('muted'));
+		} else if ($trg.hasClass('fullPlayer')) {
+			$trg.closest('.player-quad').find('video')[0].requestFullscreen();
+			console.log($trg.closest('.player-quad').find('video')[0]);
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
@@ -424,7 +431,8 @@ function openPlayer($element) {
 				controls: false,
 				disableSeekUI: true,
 				showBigPlayButton: false,
-				timecode: false
+				timecode: false,
+				mute: true
 			});
 			players.push(player);
 			player.play();
@@ -460,7 +468,7 @@ function openPlayer($element) {
 				splash_screen: '/img/holding.png',
 				width: 'parent',
 				height: 'parent',
-				muted: false,
+				muted: true,
 				sync_buffer: 1000,
 				buffering: 500,
 				autoplay: true

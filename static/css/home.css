@@ -192,6 +192,17 @@ nav.drag {
   padding-left: 1rem !important;
   transition: 0.3s;
 }
+.mutePlayer {
+  background-image: url(../img/speaker.svg);
+}
+
+.mutePlayer.muted {
+  background-image: url(../img/mute.svg);
+}
+
+.fullPlayer {
+  background-image: url(../img/expand.svg);
+}
 
 @supports(selector(:has(p))) {
   .sourceSelect {
