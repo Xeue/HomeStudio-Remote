@@ -192,6 +192,16 @@ nav.drag {
   padding-left: 1rem !important;
   transition: 0.3s;
 }
+
+.triple #camThree {
+  translate: 50% 0;
+}
+
+.thumbnail {
+  aspect-ratio: 16/9;
+  background: black;
+}
+
 .mutePlayer {
   background-image: url(../img/speaker.svg);
 }

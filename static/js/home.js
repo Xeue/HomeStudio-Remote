@@ -321,6 +321,7 @@ $(document).ready(function() {
 			$three.addClass('d-none');
 			$four.addClass('d-none');
 			$views.removeClass('masonry-2');
+			$views.removeClass('triple');
 			$views.addClass('masonry-1');
 			$('.layout-btn.active').removeClass('active');
 			$trg.addClass('active');
@@ -334,6 +335,7 @@ $(document).ready(function() {
 			$three.addClass('d-none');
 			$four.addClass('d-none');
 			$views.addClass('masonry-2');
+			$views.removeClass('triple');
 			$views.removeClass('masonry-1');
 			$('.layout-btn.active').removeClass('active');
 			$trg.addClass('active');
@@ -341,15 +343,28 @@ $(document).ready(function() {
 			$two.addClass('selectedPlayer');
 			closePlayer($three.find('.player-container').children().first());
 			closePlayer($four.find('.player-container').children().first());
+		} else if ($trg.is('#nav-three-tab')) {
+			$two.removeClass('d-none');
+			$three.removeClass('d-none');
+			$four.addClass('d-none');
+			$views.addClass('masonry-2');
+			$views.addClass('triple');
+			$views.removeClass('masonry-1');
+			$('.layout-btn.active').removeClass('active');
+			$trg.addClass('active');
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			$three.addClass('selectedPlayer');
+			closePlayer($four.find('.player-container').children().first());
 		} else if ($trg.is('#nav-four-tab')) {
 			$two.removeClass('d-none');
 			$three.removeClass('d-none');
 			$four.removeClass('d-none');
 			$views.addClass('masonry-2');
+			$views.removeClass('triple');
 			$views.removeClass('masonry-1');
 			$('.layout-btn.active').removeClass('active');
 			$('.selectedPlayer').removeClass('selectedPlayer');
-			$three.addClass('selectedPlayer');
+			$four.addClass('selectedPlayer');
 			$trg.addClass('active');
 		} else if ($trg.hasClass('closePlayer')) {
 			closePlayer($trg.closest('.player-quad').find('.player-container').children().first());
