@@ -214,6 +214,25 @@ nav.drag {
   background-image: url(../img/expand.svg);
 }
 
+.decodeStatus::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  display: block;
+  background: #5f6873;
+  border-radius: 50%;
+  border: 1px solid #354655;
+  margin: auto;
+}
+
+.error > .decodeStatus::before {
+  background-color: red;
+}
+
+.Pushing > .decodeStatus::before {
+  background-color: #198754;
+}
+
 @supports(selector(:has(p))) {
   .sourceSelect {
       max-width: 0px;

@@ -26,12 +26,14 @@ templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
 
 templates.decoder = `<% for(i = 0; i < devices.length; i++) { %>
 	<tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="decoder">
+	  <td class="decodeStatus"></td>
 	  <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
 	  <td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
 	  <td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
 	  <td data-type="select" data-key="Feed" data-value="<%-devices[i].Feed%>" data-variable="encoders"><%-devices[i].Feed%></td>
 	  <td class="d-flex gap-2">
 	    <button type="button" class="btn btn-success startSRTPush flex-grow-1">Start</button>
+		<button type="button" class="btn btn-success stopSRTPush flex-grow-1">Stop</button>
 		<button type="button" class="btn btn-danger editConfig flex-grow-1">Edit</button>
 		<button type="button" class="btn btn-danger deleteRow flex-grow-1">Delete</button>
 	  </td>
@@ -88,6 +90,14 @@ function socketDoMessage(header, payload) {
 		switch (payload.type) {
 		case 'decoding':
 			$('#SRTPushStatus').html(payload.message);
+			break;
+		case 'pushStatus':
+			if (payload.message.message !== "OK") break;
+			$('#configDecoders tr').attr('class', '');
+			payload.message.response.forEach(decode => {
+				const $tr = $(`#configDecoders [data-id="${decode.id.replace('push_decoder_', '')}"`);
+				$tr.addClass(decode.state);
+			})
 			break;
 		default:
 			break;
@@ -438,6 +448,18 @@ $(document).ready(function() {
 			const $tr = $trg.closest('tr');
 			localConnection.send({
 				"command":"startSRTPush",
+				"id":$tr.data('id')
+			});
+		} else if ($trg.hasClass('stopSRTPush')) {
+			const $tr = $trg.closest('tr');
+			localConnection.send({
+				"command":"stopSRTPush",
+				"id":$tr.data('id')
+			});
+		} else if ($trg.hasClass('getSRTPush')) {
+			const $tr = $trg.closest('tr');
+			localConnection.send({
+				"command":"getSRTPush",
 				"id":$tr.data('id')
 			});
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {

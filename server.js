@@ -19,8 +19,10 @@ const __static = path.resolve(__dirname+"/static");
 
 const ejs = new electronEjs({'static': __static}, {});
 
+const omeVersion = "dev";
+//const omeVersion = "latest";
 const dockerConfigPath = `${path.dirname(app.getPath('exe'))}/ome/`;
-const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 8081:8081 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${dockerConfigPath}:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:latest`
+const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 8081:8081 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${dockerConfigPath}:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:${omeVersion}`
 
 
 let isQuiting = false;
@@ -151,6 +153,7 @@ let configLoaded = false;
 
 	webServer.start();
 	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
+	setInterval(getPush, 10*1000);
 })().catch(error => {
 	console.log(error);
 });
@@ -418,6 +421,16 @@ async function doMessage(msgObj, socket) {
 		break;
 	case 'startSRTPush':
 		startPush(payload.id);
+		await sleep(2);
+		getPush();
+		break;
+	case 'stopSRTPush':
+		stopPush(payload.id);
+		await sleep(2);
+		getPush();
+		break;
+	case 'getSRTPush':
+		getPush(payload.id);
 		break;
 	default:
 		logObj('Unknown message', msgObj, 'W');
@@ -513,37 +526,94 @@ async function shellCommandPrintCollect(command) {
 	});
 }
 
+async function sleep(seconds) {
+	await new Promise (resolve => setTimeout(resolve, 1000*seconds));
+}
+
 async function startPush(id) {
 	const decoderConfig = decoders(id)[0];
-	const pushID = Math.floor(Date.now() / 1000);
 	const body = {
-		"id": "push_"+pushID,
+		"id": "push_decoder_"+id,
 		"stream": {
 		 	"name": decoderConfig.Feed
 		},
 		"protocol": "srt",
 		"url": decoderConfig.URL+"?mode=caller"
 	}
-	log(body, 'A');
 	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`);
 	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
 		method: 'POST',
 		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
 		body: JSON.stringify(body)
 	})
+	const jsonRpcResponse = await response.json();
 	if (response.status !== 200) {
 		logs.error('Could not reach OME server', response.statusText);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
-			"message": `Error pushing stream: ${response.statusText}, <pre style="white-space: break-spaces;">${JSON.stringify(response.body, null, 4)}</pre>`
+			"message": `Error pushing stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
 		});
 		return;
 	}
-	const jsonRpcResponse = await response.json();
 	webServer.sendToAll({
 		"command": "log",
 		"type": "decoding",
-		"message": `Started pushing stream: <pre style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+		"message": `Started pushing stream <pre <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
 	});
+	return jsonRpcResponse;
+}
+
+async function stopPush(id) {
+	const body = {
+		"id": "push_decoder_"+id
+	}
+	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`);
+	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`,{
+		method: 'POST',
+		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
+		body: JSON.stringify(body)
+	})
+	const jsonRpcResponse = await response.json();
+	if (response.status !== 200) {
+		logs.error('Could not reach OME server', response.statusText);
+		webServer.sendToAll({
+			"command": "log",
+			"type": "decoding",
+			"message": `Error stopping stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+		});
+		return;
+	}
+	webServer.sendToAll({
+		"command": "log",
+		"type": "decoding",
+		"message": `Stopped pushing stream <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+	});
+	return jsonRpcResponse;
+}
+
+async function getPush(id) {
+	const postOptions = {
+		method: 'POST',
+		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')}
+	}
+	if (id) postOptions.body = JSON.stringify({"id": "push_decoder_"+id});
+	logs.debug(`Getting pushes from to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`);
+	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, postOptions)
+	const jsonRpcResponse = await response.json();
+	if (response.status !== 200) {
+		logs.error('Could not reach OME server', response.statusText);
+		webServer.sendToAll({
+			"command": "log",
+			"type": "decoding",
+			"message": `Error getting pushes: ${response.statusText}, <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+		});
+		return;
+	}
+	webServer.sendToAll({
+		"command": "log",
+		"type": "pushStatus",
+		"message": jsonRpcResponse
+	});
+	return jsonRpcResponse;
 }
