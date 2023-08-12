@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-//const fetch = require('node-fetch');
 const fs = require('fs');
 const express = require('express');
 const path = require('path');
@@ -11,6 +10,7 @@ const electronEjs = require('electron-ejs');
 const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
 const AutoLaunch = require('auto-launch');
 const {exec} = require('child_process');
+const fetch = require('node-fetch');
 
 let webServer;
 const __main = path.resolve(__dirname);
@@ -321,10 +321,16 @@ async function configDone() {
 }
 
 
-function streams(type) {
-	const Streams = loadData('Streams');
-	if (type !== undefined) return Streams.filter(Stream => Stream.Type == type);
-	return Streams;
+function encoders(type) {
+	const Encoders = loadData('Encoders');
+	if (type !== undefined) return Encoders.filter(encoder => encoder.Type == type);
+	return Encoders;
+}
+
+function decoders(id) {
+	const Decoders = loadData('Decoders');
+	if (id !== undefined) return Decoders.filter(decoder => decoder.ID == id);
+	return Decoders;
 }
 
 function expressRoutes(expressApp) {
@@ -340,7 +346,8 @@ function expressRoutes(expressApp) {
 			systemName:config.get('systemName'),
 			version: version,
 			homestudioKey: config.get('homestudioKey'),
-			streams: streams(),
+			encoders: encoders(),
+			decoders: decoders(),
 			host: config.get('host'),
 			dockerCommand: dockerCommand
 		});
@@ -352,7 +359,8 @@ function expressRoutes(expressApp) {
 			systemName:config.get('systemName'),
 			version: version,
 			homestudioKey: config.get('homestudioKey'),
-			streams: streams(),
+			encoders: encoders(),
+			decoders: decoders(),
 			host: config.get('host'),
 			dockerCommand: dockerCommand
 		});
@@ -362,8 +370,11 @@ function expressRoutes(expressApp) {
 		let catagory = req.query.catagory;
 		let data;
 		switch (catagory) {
-		case 'streams':
-			data = streams();
+		case 'encoders':
+			data = encoders();
+			break;
+		case 'decoders':
+			data = decoders();
 			break;
 		default:
 			break;
@@ -371,13 +382,19 @@ function expressRoutes(expressApp) {
 		res.send(JSON.stringify(data));
 	});
 
-	expressApp.post('/setstreams', (req, res) => {
-		log('Request to set streams config data', 'D');
+	expressApp.post('/setencoders', (req, res) => {
+		log('Request to set encoders config data', 'D');
 		webServer.sendToAll({
 			"command":"feeds",
 			"feeds":req.body
 		});
-		writeData('Streams', req.body);
+		writeData('Encoders', req.body);
+		res.send('Done');
+	});
+
+	expressApp.post('/setdecoders', (req, res) => {
+		log('Request to set decoders config data', 'D');
+		writeData('Decoders', req.body);
 		res.send('Done');
 	});
 }
@@ -399,6 +416,9 @@ async function doMessage(msgObj, socket) {
 	case 'register':
 		logs.log('Client registered', 'A');
 		break;
+	case 'startSRTPush':
+		startPush(payload.id);
+		break;
 	default:
 		logObj('Unknown message', msgObj, 'W');
 	}
@@ -418,13 +438,21 @@ function loadData(file) {
 		logs.debug('File error:', error);
 		const fileData = [];
 		switch (file) {
-		case 'Streams':
+		case 'Encoders':
 			fileData[0] = {
 				'Name':'Camera 1',
 				'ID':1,
 				'Type':'Local Encoder',
 				'URL':'ws://IPAddress:3333/app/feed1',
 				'Encoder':'srt://IPAddress:9999/app?streamid=srt://IPAddress:9999/app/feed1'
+			};
+			break;
+		case 'Decoders':
+			fileData[0] = {
+				'Name':'Decoder 1',
+				'ID':1,
+				'URL':'ws://IPAddress:3333',
+				'Feed':'Feed1'
 			};
 			break;
 		default:
@@ -482,5 +510,40 @@ async function shellCommandPrintCollect(command) {
 		proc.on('error', error => {
 			reject(error);
 		});
+	});
+}
+
+async function startPush(id) {
+	const decoderConfig = decoders(id)[0];
+	const pushID = Math.floor(Date.now() / 1000);
+	const body = {
+		"id": "push_"+pushID,
+		"stream": {
+		 	"name": decoderConfig.Feed
+		},
+		"protocol": "srt",
+		"url": decoderConfig.URL+"?mode=caller"
+	}
+	log(body, 'A');
+	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`);
+	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
+		method: 'POST',
+		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
+		body: JSON.stringify(body)
+	})
+	if (response.status !== 200) {
+		logs.error('Could not reach OME server', response.statusText);
+		webServer.sendToAll({
+			"command": "log",
+			"type": "decoding",
+			"message": `Error pushing stream: ${response.statusText}, <pre style="white-space: break-spaces;">${JSON.stringify(response.body, null, 4)}</pre>`
+		});
+		return;
+	}
+	const jsonRpcResponse = await response.json();
+	webServer.sendToAll({
+		"command": "log",
+		"type": "decoding",
+		"message": `Started pushing stream: <pre style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
 	});
 }

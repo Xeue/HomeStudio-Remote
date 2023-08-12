@@ -4,8 +4,8 @@ let editors = {};
 const templates = {};
 const players = [];
 
-templates.stream = `<% for(i = 0; i < devices.length; i++) { %>
-  <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="stream">
+templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
+  <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
     <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
 	<td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
 	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,Local Encoder,Homestudio SRT,Homestudio WebRTC"><%-devices[i].Type%></td>
@@ -23,6 +23,20 @@ templates.stream = `<% for(i = 0; i < devices.length; i++) { %>
     </td>
   </tr>
 <% } %>`;
+
+templates.decoder = `<% for(i = 0; i < devices.length; i++) { %>
+	<tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="decoder">
+	  <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
+	  <td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
+	  <td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
+	  <td data-type="select" data-key="Feed" data-value="<%-devices[i].Feed%>" data-variable="encoders"><%-devices[i].Feed%></td>
+	  <td class="d-flex gap-2">
+	    <button type="button" class="btn btn-success startSRTPush flex-grow-1">Start</button>
+		<button type="button" class="btn btn-danger editConfig flex-grow-1">Edit</button>
+		<button type="button" class="btn btn-danger deleteRow flex-grow-1">Delete</button>
+	  </td>
+	</tr>
+  <% } %>`;
 
 function socketDoOpen(socket) {
 	console.log('Registering as client');
@@ -72,7 +86,8 @@ function socketDoMessage(header, payload) {
 		break;
 	case 'log':
 		switch (payload.type) {
-		case 'ups':
+		case 'decoding':
+			$('#SRTPushStatus').html(payload.message);
 			break;
 		default:
 			break;
@@ -125,12 +140,14 @@ $(document).ready(function() {
 			if ($('#config').hasClass('hidden')) {
 				loading(true);
 				Promise.allSettled([
-					getConfig('streams'),
+					getConfig('encoders'),
+					getConfig('decoders'),
 				]).then(values => {
-					const [streams] = values;
+					const [encoders, decoders] = values;
 					loading(false);
 					$('#config').removeClass('hidden');
-					editors['streams'] = renderEditorTab(streams.value, editors['streams'], templates.stream, 'configStreams');
+					editors['encoders'] = renderEditorTab(encoders.value, editors['encoders'], templates.encoder, 'configEncoders');
+					editors['decoders'] = renderEditorTab(decoders.value, editors['decoders'], templates.decoder, 'configDecoders');
 				}).catch(error => {
 					console.error(error);
 				});
@@ -138,7 +155,7 @@ $(document).ready(function() {
 				$('#config').addClass('hidden');
 			}
 		} else if ($trg.hasClass('tableExport')) {
-			const $table = $('table[data-editor="streams"]');
+			const $table = $('.tab-pane.active table[data-editor]');
 			const editor = $table.data('editor');
 			const editorJSON = editors[editor].get();
 			let csv = Object.keys(editorJSON[0]).join(',') + '\n';
@@ -147,7 +164,7 @@ $(document).ready(function() {
 			}
 			download(`${editor}.csv`,csv);
 		} else if ($trg.hasClass('tableImport')) {
-			const $table = $('table[data-editor="streams"]');
+			const $table = $('.tab-pane.active table[data-editor]');
 			const $body = $table.find('tbody');
 			const editor = $table.data('editor');
 			const files = $('#csvUpload')[0].files;
@@ -170,8 +187,9 @@ $(document).ready(function() {
 			};
 			reader.readAsText(files[0]);
 		} else if ($trg.hasClass('toggleTableRaw')) {
-			$('.dataTable').collapse('toggle');
-			$('.dataRaw').collapse('toggle');
+			const $active = $('.tab-pane.active');
+			$active.find('.dataTable').collapse('toggle');
+			$active.find('.dataRaw').collapse('toggle');
 		} else if ($trg.hasClass('editConfig')) {
 			let $row = $trg.closest('tr');
 			$row.children().each(function() {
@@ -204,11 +222,20 @@ $(document).ready(function() {
 				}
 				case 'select': {
 					let txt = `<select class="btn btn-outline-light" name="${$td.data('key')}">`;
-					const options = $td.data('options').split(',');
-					options.forEach(option => {
-						const selected = option == $td.data('value') ? 'selected' : '';
-						txt += `<option value="${option}" ${selected}>${option}</option>`;
-					});
+					if ($td.data('options')) {
+						const options = $td.data('options').split(',');
+						options.forEach(option => {
+							const selected = option == $td.data('value') ? 'selected' : '';
+							txt += `<option value="${option}" ${selected}>${option}</option>`;
+						});
+					} else {
+						const variable = $td.data('variable');
+						window[variable].forEach(data => {
+							console.log(data);
+							const selected = 'feed'+data.ID == $td.data('value') ? 'selected' : '';
+							txt += `<option value="feed${data.ID}" ${selected}>${data.Name}</option>`;
+						});
+					}
 					txt += '</select>';
 					const $txt = $(txt);
 					$txt.change(function() {
@@ -269,11 +296,10 @@ $(document).ready(function() {
 			editors[editor].set(current);
 			editors[editor].expandAll();
 		} else if ($trg.hasClass('tableNew')) {
-			const $tbody = $('table[data-editor="streams"]').find('tbody');
+			const $tbody = $('.tab-pane.active table[data-editor]').find('tbody');
 			const $rows = $tbody.children();
 			let newID = 0;
 			const IDs = [];
-			console.log('here');
 			$rows.each(function(){
 				const row = $(this);
 				newID = row.data('id') > newID ? row.data('id') : newID;
@@ -290,10 +316,16 @@ $(document).ready(function() {
 			const dummyData = [];
 			dummyData[0] = {};
 			switch (template) {
-			case 'stream':
+			case 'encoder':
 				dummyData[0].Name = `Camera ${newID}`;
 				dummyData[0].ID = newID;
 				dummyData[0].Type = 'Select';
+				dummyData[0].URL = '';
+				break;
+			case 'decoder':
+				dummyData[0].Name = `Decoder ${newID}`;
+				dummyData[0].ID = newID;
+				dummyData[0].Feed = 'Select';
 				dummyData[0].URL = '';
 				break;
 			default:
@@ -313,10 +345,11 @@ $(document).ready(function() {
 						contentType : 'application/json',
 						type : 'POST'}
 					));
-					streams = editors[editor].get();
-					renderStreams();
 				}
 			}
+			encoders = editors['encoders'].get();
+			decoders = editors['decoders'].get();
+			renderStreams();
 			Promise.allSettled(promises).then(() => {
 				alert('Saved');
 			});
@@ -401,6 +434,12 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('fullPlayer')) {
 			$trg.closest('.player-quad').find('video')[0].requestFullscreen();
 			console.log($trg.closest('.player-quad').find('video')[0]);
+		} else if ($trg.hasClass('startSRTPush')) {
+			const $tr = $trg.closest('tr');
+			localConnection.send({
+				"command":"startSRTPush",
+				"id":$tr.data('id')
+			});
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
@@ -567,19 +606,19 @@ function download(filename, text) {
 function renderStreams() {
 	$aside = $('#tumbList');
 	$aside.html('');
-	streams.forEach(stream => {
+	encoders.forEach(encoder => {
 		$aside.append(`<div class="card text-white mb-2 sourceSelect"
-		id="player-${stream.Name.replace(/ /g,'-')}-cont"
-		data-id="${stream.ID}"
-		data-url="${stream.URL}"
-		data-name="${stream.Name}"
-		data-type="${stream.Type}">
+		id="player-${encoder.Name.replace(/ /g,'-')}-cont"
+		data-id="${encoder.ID}"
+		data-url="${encoder.URL}"
+		data-name="${encoder.Name}"
+		data-type="${encoder.Type}">
 			<img class="thumbnail card-img-top"
-				src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
-				data-src="${stream.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
+				src="${encoder.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
+				data-src="${encoder.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 			<section class="py-1 px-2 playerTitle">
-				<h5 class="card-title feed-title" data-id="${stream.ID}">${stream.Name}</h5>
+				<h5 class="card-title feed-title" data-id="${encoder.ID}">${encoder.Name}</h5>
 			</section>
 		</div>`);
 	});
