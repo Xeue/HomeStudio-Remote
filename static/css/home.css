@@ -75,7 +75,7 @@ nav.drag {
 .masonry {
   display: grid;
   grid-template-areas: "tl tr" "bl br";
-  gap: 1rem;
+  gap: 5px;
   grid-template-columns: 1fr 1fr;
 }
 
@@ -97,7 +97,7 @@ nav.drag {
   min-width: 0;
   word-wrap: break-word;
   border-radius: 0.25rem;
-  padding: 1rem!important;
+  padding:  2px !important;
 }
 
 .masonry table {
@@ -185,11 +185,11 @@ nav.drag {
 }
 
 .selectedPlayer {
-  outline: rgba(25, 117, 234, 0.67) solid 5px;
+  outline: rgba(25, 117, 234, 0.67) solid 3px;
 }
 
 #tumbList {
-  padding-left: 1rem !important;
+  padding-left: .25rem !important;
   transition: 0.3s;
 }
 
@@ -197,9 +197,34 @@ nav.drag {
   translate: 50% 0;
 }
 
+.feed-title {
+  padding-left: 3px;
+  padding-bottom: 3px;
+  margin: 0;
+}
+
+.player-container {
+  border-radius: 3px;
+  overflow: hidden;
+}
+
 .thumbnail {
   aspect-ratio: 16/9;
   background: black;
+}
+
+.player-container:empty {
+  aspect-ratio: 16/9;
+}
+.player-container:empty::before {
+  content: "No Feed Selected";
+  background: black;
+  width: 100%;
+  height: 100%;
+  display: block;
+  text-align: center;
+  margin: auto;
+  padding: 25%;
 }
 
 .mutePlayer {
@@ -253,7 +278,7 @@ nav.drag {
   }
   
   main:has(.selectedPlayer) aside#tumbList {
-      padding-left: 1rem !important;
+      padding-left: 0.25rem !important;
   }
 
   #appHome .sourceSelect {

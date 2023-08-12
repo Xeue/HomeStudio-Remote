@@ -521,12 +521,13 @@ function openPlayer($element) {
 
 	switch (streamType) {
 		case 'Local Encoder':
-		case 'Homestudio WebRTC':				
+		case 'Homestudio WebRTC':
+			const resolution = $('#nav-one-tab').hasClass('active') ? "" : "_lowres";
 			const player = OvenPlayer.create(`${streamName.replace(/ /g, '-')}-player`, {
 				sources:[{
 					label: streamName,
 					type: 'webrtc',
-					file: streamURL
+					file: streamURL+resolution
 				}],
 				image: '/img/holding.png',
 				autoStart: true,
@@ -540,9 +541,12 @@ function openPlayer($element) {
 			player.play();
 			player.on('stateChanged', data => {
 				switch (data.newstate) {
-					case 'error':
-					case 'stalled':
-					case 'idle':
+					case 'playing':
+						player.hasTimer = false;
+						clearTimeout(player.timeout);
+						delete player.timeout;
+						break;
+					default:
 						if (player.hasTimer) return
 						player.hasTimer = true;
 						player.timeout = setTimeout(() => {
@@ -551,14 +555,6 @@ function openPlayer($element) {
 							if (player.getState() === 'playing') return;
 							player.load();
 						}, 2000);
-						break;
-					case 'complete':
-					case 'playing':
-						player.hasTimer = false;
-						clearTimeout(player.timeout);
-						delete player.timeout;
-						break;
-					default:
 						break;
 				}
 			})
@@ -629,19 +625,19 @@ function renderStreams() {
 	$aside = $('#tumbList');
 	$aside.html('');
 	encoders.forEach(encoder => {
-		$aside.append(`<div class="card text-white mb-2 sourceSelect"
+		$aside.append(`<div class="card text-white mb-1 sourceSelect"
 		id="player-${encoder.Name.replace(/ /g,'-')}-cont"
 		data-id="${encoder.ID}"
 		data-url="${encoder.URL}"
 		data-name="${encoder.Name}"
 		data-type="${encoder.Type}">
+			<section class="playerTitle">
+				<h5 class="card-title feed-title" data-id="${encoder.ID}">${encoder.Name}</h5>
+			</section>
 			<img class="thumbnail card-img-top"
 				src="${encoder.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
 				data-src="${encoder.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
-			<section class="py-1 px-2 playerTitle">
-				<h5 class="card-title feed-title" data-id="${encoder.ID}">${encoder.Name}</h5>
-			</section>
 		</div>`);
 	});
 }
