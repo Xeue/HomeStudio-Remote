@@ -15,6 +15,8 @@ class webSocket extends EventTarget {
 		this.protocol = 'ws';
 		this.currentSystem = currentSystem;
 		this.logger = logger;
+		this.timeout;
+		this.timeoutCounter = 0;
 
 		if (ssl) {
 			this.protocol = 'wss';
@@ -23,20 +25,40 @@ class webSocket extends EventTarget {
 	}
 
 	connect(serverURL) {
+		clearTimeout(this.timeout);
 		if (this.serverURL !== serverURL) {
 			if (typeof this.server !== 'undefined') {
-				this.server.disconnect();
+				this.server.close();
 			}
 			this.server = null;
 			this.serverURL = serverURL;
 			this.connecting = false;
 		}
-		if (this.connecting) return this.server;
+		if (this.connecting) {
+			if (this.timeoutCounter > 4) {
+				this.timeoutCounter = 0;
+				this.logger.log('Terminating hung connection');
+				this.server.close();
+				this.server = null;
+				this.serverURL = serverURL;
+				this.connecting = false;
+				this.connect(this.serverURL);
+			} else {
+				this.timeoutCounter++;
+				this.timeout = setTimeout(() => {
+					this.logger.log('Waiting for connection');
+					this.connect(this.serverURL);
+				}, 500);
+				return this.server;
+			}
+		}
 		this.connecting = true;
 		this.logger.log(`Connecting to: ${this.protocol}://${this.serverURL}`);
 		this.server = new WebSocket(`${this.protocol}://${this.serverURL}`);
 
 		this.server.onopen = event => {
+			clearTimeout(this.timeout);
+			this.timeoutCounter = 0;
 			this.logger.log('Connection established!');
 			this.connecting = false;
 			this.dispatchEvent(new Event('open'));
@@ -58,11 +80,14 @@ class webSocket extends EventTarget {
 		};
 
 		this.server.onclose = () => {
-			if (!this.forceShut) {
+			if (this.forceShut) {
+				this.logger.log('Connection forcably ended');
+			} else {
 				this.logger.log('Connection ended');
-				setTimeout(() => {
+				this.timeout = setTimeout(() => {
+					this.logger.log('Reconnecting');
 					this.connect(this.serverURL);
-				}, 500);
+				}, 2000);
 			}
 			this.forceShut = false;
 			this.dispatchEvent(new Event('close'));

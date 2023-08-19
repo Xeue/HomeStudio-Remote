@@ -50,11 +50,12 @@ let configLoaded = false;
 			config.info('omeDocker', `If setup of OME has failed try using this command manually in your command prompt: <code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">${dockerCommand}</code>`, ['omeType', 'docker']);
 		}
 		config.require('host', [], 'What is the IP/host of Oven Media Engine? (normally this machines IP)');
-		config.require('port', [], 'What port shall the server use?');
-		config.require('systemName', [], 'What is the name of the system/job?');
+		config.require('port', [], 'What port shall the server use');
+		config.require('systemName', [], 'What is the name of the system/job');
+		config.require('reconnectTimeoutSeconds', [], 'How long should a stream wait before trying to reconnect in the GUI');
 		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
-		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save logs to local file?');
-		config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings?');
+		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save logs to local file');
+		config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings');
 		{
 			config.require('debugLineNum', {true: 'Yes', false: 'No'}, 'Print line numbers?', ['advancedConfig', true]);
 			config.require('printPings', {true: 'Yes', false: 'No'}, 'Print pings?', ['advancedConfig', true]);
@@ -73,6 +74,7 @@ let configLoaded = false;
 		config.default('homestudioKey', '');
 		config.default('omeType', 'docker');
 		config.default('host', 'localhost');
+		config.default('reconnectTimeoutSeconds', 4);
 
 
 		if (!await config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
@@ -359,6 +361,7 @@ function expressRoutes(expressApp) {
 			decoders: decoders(),
 			host: config.get('host'),
 			dockerCommand: dockerCommand,
+			reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
 			config: false
 		});
 	});
@@ -373,6 +376,7 @@ function expressRoutes(expressApp) {
 			decoders: decoders(),
 			host: config.get('host'),
 			dockerCommand: dockerCommand,
+			reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
 			config: true
 		});
 	});
@@ -585,27 +589,37 @@ async function startPush(id) {
 		"url": decoderConfig.URL+"?mode=caller"
 	}
 	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`);
-	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
-		method: 'POST',
-		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
-		body: JSON.stringify(body)
-	})
-	const jsonRpcResponse = await response.json();
-	if (response.status !== 200) {
-		logs.error('Could not reach OME server', response.statusText);
+	try {
+		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
+			method: 'POST',
+			headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
+			body: JSON.stringify(body)
+		})
+		const jsonRpcResponse = await response.json();
+		if (response.status !== 200) {
+			logs.error('Could not reach OME server', response.statusText);
+			webServer.sendToAll({
+				"command": "log",
+				"type": "decoding",
+				"message": `Error pushing stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+			});
+			return;
+		}
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
-			"message": `Error pushing stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+			"message": `Started pushing stream: <pre <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+		});
+		return jsonRpcResponse;
+	} catch (error) {
+		logs.error('Could not reach OME server', error);
+		webServer.sendToAll({
+			"command": "log",
+			"type": "decoding",
+			"message": `Error pushing stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(error, null, 4)}</pre>`
 		});
 		return;
 	}
-	webServer.sendToAll({
-		"command": "log",
-		"type": "decoding",
-		"message": `Started pushing stream <pre <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-	});
-	return jsonRpcResponse;
 }
 
 async function stopPush(id) {
@@ -613,27 +627,37 @@ async function stopPush(id) {
 		"id": "push_decoder_"+id
 	}
 	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`);
-	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`,{
-		method: 'POST',
-		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
-		body: JSON.stringify(body)
-	})
-	const jsonRpcResponse = await response.json();
-	if (response.status !== 200) {
-		logs.error('Could not reach OME server', response.statusText);
+	try {
+		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`,{
+			method: 'POST',
+			headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
+			body: JSON.stringify(body)
+		})
+		const jsonRpcResponse = await response.json();
+		if (response.status !== 200) {
+			logs.error('Could not reach OME server', response.statusText);
+			webServer.sendToAll({
+				"command": "log",
+				"type": "decoding",
+				"message": `Error stopping stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+			});
+			return;
+		}
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
-			"message": `Error stopping stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+			"message": `Stopped pushing stream: <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+		});
+		return jsonRpcResponse;	
+	} catch (error) {
+		logs.error('Could not reach OME server', error);
+		webServer.sendToAll({
+			"command": "log",
+			"type": "decoding",
+			"message": `Error stopping stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(error, null, 4)}</pre>`
 		});
 		return;
 	}
-	webServer.sendToAll({
-		"command": "log",
-		"type": "decoding",
-		"message": `Stopped pushing stream <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-	});
-	return jsonRpcResponse;
 }
 
 async function getPush(id) {
@@ -643,21 +667,31 @@ async function getPush(id) {
 	}
 	if (id) postOptions.body = JSON.stringify({"id": "push_decoder_"+id});
 	logs.debug(`Getting pushes from to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`);
-	const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, postOptions)
-	const jsonRpcResponse = await response.json();
-	if (response.status !== 200) {
-		logs.error('Could not reach OME server', response.statusText);
+	try {
+		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, postOptions)
+		const jsonRpcResponse = await response.json();
+		if (response.status !== 200) {
+			logs.error('Could not reach OME server', response.statusText);
+			webServer.sendToAll({
+				"command": "log",
+				"type": "decoding",
+				"message": `Error getting pushes: ${response.statusText}: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+			});
+			return;
+		}
+		webServer.sendToAll({
+			"command": "log",
+			"type": "pushStatus",
+			"message": jsonRpcResponse
+		});
+		return jsonRpcResponse;
+	} catch (error) {
+		logs.error('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
-			"message": `Error getting pushes: ${response.statusText}, <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
+			"message": `Error getting pushes cannot connect to server: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(error, null, 4)}</pre>`
 		});
 		return;
 	}
-	webServer.sendToAll({
-		"command": "log",
-		"type": "pushStatus",
-		"message": jsonRpcResponse
-	});
-	return jsonRpcResponse;
 }

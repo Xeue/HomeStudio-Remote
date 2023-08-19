@@ -607,7 +607,7 @@ function openPlayer($element) {
 							delete player.timeout;
 							if (player.getState() === 'playing') return;
 							player.load();
-						}, 2000);
+						}, 1000 * reconnectTimeoutSeconds);
 						break;
 				}
 			})
