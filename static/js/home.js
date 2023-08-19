@@ -528,7 +528,6 @@ function choseWindows(number) {
 			break;
 	}
 	Cookies.set('mapping', JSON.stringify(mapping), {
-		secure: true,
 		SameSite: 'Lax'
 	});
 }
@@ -565,7 +564,6 @@ function openPlayer($element) {
 			break;
 	}
 	Cookies.set('mapping', JSON.stringify(mapping), {
-		secure: true,
 		SameSite: 'Lax'
 	});
 
@@ -659,7 +657,6 @@ function closePlayer($element) {
 				break;
 		}
 		Cookies.set('mapping', JSON.stringify(mapping), {
-			secure: true,
 			SameSite: 'Lax'
 		});
 	} catch (error) {
