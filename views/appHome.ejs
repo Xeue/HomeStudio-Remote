@@ -84,7 +84,7 @@
                                     <th class=""></th>
                                 </tr>
                             </thead>
-                            <tbody id="configEncoders" data-template="encoders"></tbody>
+                            <tbody id="configEncoders" data-template="encoder"></tbody>
                         </table>
                     </div>
                     <div class="dataRaw collapse mt-3 mb-2">
@@ -95,7 +95,7 @@
 						<button class="btn btn-primary" id="homestudioKeySet">Set</button>
 					</div>
                 </div>
-                <div class="tab-pane fade" data-editor="decoders" role="tabpanel" id="nav-decoders">
+                <div class="tab-pane fade" data-editor="encoders" role="tabpanel" id="nav-decoders">
                     <div class="dataTable collapse show">
                         <table class="table table-dark" data-editor="decoders">
                             <thead class="position-sticky top-0">
@@ -113,6 +113,10 @@
                     </div>
                     <div class="dataRaw collapse mt-3 mb-2">
                         <div id="configDecodersRaw"></div>
+                    </div>
+                    <div class="mb-1 d-flex justify-content-end gap-1">
+                        <button class="btn btn-success pushAll" type="button">Start All</button>
+                        <button class="btn btn-success stopAll" type="button">Stop All</button>
                     </div>
                     <div>
                         <h5>SRT Decoding message:</h5>

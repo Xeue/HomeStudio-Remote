@@ -239,6 +239,11 @@ nav.drag {
   background-image: url(../img/expand.svg);
 }
 
+.fullPlayer,
+.mutePlayer {
+  display: none;
+}
+
 .decodeStatus::before {
   content: "";
   width: 1rem;
@@ -255,8 +260,13 @@ nav.drag {
 }
 
 .Pushing > .decodeStatus::before {
-  background-color: #198754;
+  background-color: #14ff00;
 }
+
+.ready > .decodeStatus::before {
+  background-color: #0040ff;
+}
+
 
 @supports(selector(:has(p))) {
   .sourceSelect {
@@ -287,4 +297,32 @@ nav.drag {
     width: 20vw;
     opacity: 1;
   }
+}
+
+.op-message-container::before {
+  content: "No camera feed currently connected";
+  color: white;
+  display: inline-block;
+  background-color: rgba(18, 18, 28, .3);
+  padding: 0.8em 1.2em;
+  word-wrap: break-word;
+  max-width: 80%;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 110%;
+  font-weight: bold;
+}
+
+.op-message-text {
+  display: none !important;
+}
+
+.op-gradient-bottom.op-clear {
+  background-color: transparent !important;
+}
+
+.op-context-panel,
+.setting-holder.op-navigators,
+.op-navigators.op-play-controller {
+  display: none !important;
 }

@@ -153,6 +153,12 @@ let configLoaded = false;
 
 	webServer.start();
 	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
+	const Decoders = decoders()
+	for (let index = 0; index < Decoders.length; index++) {
+		const decoder = Decoders[index];
+		startPush(decoder.ID);
+		await sleep(0.2);
+	}
 	setInterval(getPush, 10*1000);
 })().catch(error => {
 	console.log(error);
@@ -352,7 +358,22 @@ function expressRoutes(expressApp) {
 			encoders: encoders(),
 			decoders: decoders(),
 			host: config.get('host'),
-			dockerCommand: dockerCommand
+			dockerCommand: dockerCommand,
+			config: false
+		});
+	});
+	expressApp.get('/config',  (req, res) =>  {
+		log('New client connected', 'A');
+		res.header('Content-type', 'text/html');
+		res.render('home', {
+			systemName:config.get('systemName'),
+			version: version,
+			homestudioKey: config.get('homestudioKey'),
+			encoders: encoders(),
+			decoders: decoders(),
+			host: config.get('host'),
+			dockerCommand: dockerCommand,
+			config: true
 		});
 	});
 	expressApp.get('/app',  (req, res) =>  {
@@ -383,6 +404,7 @@ function expressRoutes(expressApp) {
 			break;
 		}
 		res.send(JSON.stringify(data));
+		getPush();
 	});
 
 	expressApp.post('/setencoders', (req, res) => {
@@ -421,14 +443,36 @@ async function doMessage(msgObj, socket) {
 		break;
 	case 'startSRTPush':
 		startPush(payload.id);
-		await sleep(2);
+		await sleep(1);
 		getPush();
 		break;
 	case 'stopSRTPush':
 		stopPush(payload.id);
-		await sleep(2);
+		await sleep(1);
 		getPush();
 		break;
+	case 'startSRTAll': {
+		const Decoders = decoders()
+		for (let index = 0; index < Decoders.length; index++) {
+			const decoder = Decoders[index];
+			startPush(decoder.ID);
+			await sleep(0.2);
+			getPush(decoder.ID);
+		}
+		getPush();
+		break;
+	}
+	case 'stopSRTAll': {
+		const Decoders = decoders()
+		for (let index = 0; index < Decoders.length; index++) {
+			const decoder = Decoders[index];
+			stopPush(decoder.ID);
+			await sleep(0.2);
+			getPush(decoder.ID);
+		}
+		getPush();
+		break;
+	}
 	case 'getSRTPush':
 		getPush(payload.id);
 		break;

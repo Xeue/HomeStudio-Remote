@@ -57,7 +57,10 @@
         
         <div class="d-flex gap-1">
             <button id="installBtn" onclick="install()" class="btn btn-secondary d-none">Install</button>
-		    <button id="toggleConfig" class="btn btn-secondary">Config</button>
+		    <% if (config) { %>
+            <button id="toggleConfig" class="btn btn-secondary">Config</button>
+            <% } %>
+            <button id="refresh" class="btn btn-secondary" onClick="window.location.reload();">Refresh</button>
         </div>
     </nav>
     <main class="tab-content container-fluid bg-dark p-1 overflow-auto d-flex">
@@ -166,6 +169,10 @@
                     </div>
                     <div class="dataRaw collapse mt-3 mb-2">
                         <div id="configDecodersRaw"></div>
+                    </div>
+                    <div class="mb-1 d-flex justify-content-end gap-1">
+                        <button class="btn btn-success pushAll" type="button">Start All</button>
+                        <button class="btn btn-success stopAll" type="button">Stop All</button>
                     </div>
                     <div>
                         <h5>SRT Decoding message:</h5>

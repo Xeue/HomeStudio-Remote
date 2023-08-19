@@ -422,6 +422,14 @@ $(document).ready(function() {
 				"command":"getSRTPush",
 				"id":$tr.data('id')
 			});
+		} else if ($trg.hasClass('pushAll')) {
+			localConnection.send({
+				"command":"startSRTAll"
+			});
+		} else if ($trg.hasClass('stopAll')) {
+			localConnection.send({
+				"command":"stopSRTAll"
+			});
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
@@ -539,7 +547,7 @@ function openPlayer($element) {
 	if ($newPlayer.length > 0 && !$curentPlayer.is($newPlayer)) closePlayer($newPlayer);
 
 	$selectedCont.html($player);
-	
+
 	switch ($selectedCont.closest('.player-quad').data('type')) {
 		case 'oneCam':
 			mapping[1] = streamID;
@@ -578,7 +586,7 @@ function openPlayer($element) {
 				}],
 				image: '/img/holding.png',
 				autoStart: true,
-				controls: false,
+				controls: true,
 				disableSeekUI: true,
 				showBigPlayButton: false,
 				timecode: false,
@@ -627,13 +635,13 @@ function openPlayer($element) {
 
 function closePlayer($element) {
 	try {
-	const $cont = $element.closest('.player-quad');
-	const $title = $cont.find('.player-title');
-	const title = $title.data('title');
-	$title.html(title);
-	$title.data('id', '');
-	OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
-	$element.remove();
+		const $cont = $element.closest('.player-quad');
+		const $title = $cont.find('.player-title');
+		const title = $title.data('title');
+		$title.html(title);
+		$title.data('id', '');
+		OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
+		$element.remove();
 		switch ($cont.data('type')) {
 			case 'oneCam':
 				mapping[1] = 0;
