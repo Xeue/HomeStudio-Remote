@@ -3,6 +3,13 @@ let server = window.location.origin + "/";
 let editors = {};
 const templates = {};
 const players = [];
+let mapping = [
+	1,
+	0,
+	0,
+	0,
+	0
+];
 
 templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
@@ -141,11 +148,6 @@ $(document).ready(function() {
 
 	$(document).click(function(e) {
 		const $trg = $(e.target);
-		const $one = $('#camOne');
-		const $two = $('#camTwo');
-		const $three = $('#camThree');
-		const $four = $('#camFour');
-		const $views = $('#views');
 		if ($trg.is('#toggleConfig') || $trg.is('#closeConfig')) {
 			if ($('#config').hasClass('hidden')) {
 				loading(true);
@@ -384,55 +386,13 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('sourceSelect')) {
 			openPlayer($trg);
 		} else if ($trg.is('#nav-one-tab')) {
-			$two.addClass('d-none');
-			$three.addClass('d-none');
-			$four.addClass('d-none');
-			$views.removeClass('masonry-2');
-			$views.removeClass('triple');
-			$views.addClass('masonry-1');
-			$('.layout-btn.active').removeClass('active');
-			$trg.addClass('active');
-			$('.selectedPlayer').removeClass('selectedPlayer');
-			$one.addClass('selectedPlayer');
-			closePlayer($two.find('.player-container').children().first());
-			closePlayer($three.find('.player-container').children().first());
-			closePlayer($four.find('.player-container').children().first());
+			choseWindows(1);
 		} else if ($trg.is('#nav-two-tab')) {
-			$two.removeClass('d-none');
-			$three.addClass('d-none');
-			$four.addClass('d-none');
-			$views.addClass('masonry-2');
-			$views.removeClass('triple');
-			$views.removeClass('masonry-1');
-			$('.layout-btn.active').removeClass('active');
-			$trg.addClass('active');
-			$('.selectedPlayer').removeClass('selectedPlayer');
-			$two.addClass('selectedPlayer');
-			closePlayer($three.find('.player-container').children().first());
-			closePlayer($four.find('.player-container').children().first());
+			choseWindows(2);
 		} else if ($trg.is('#nav-three-tab')) {
-			$two.removeClass('d-none');
-			$three.removeClass('d-none');
-			$four.addClass('d-none');
-			$views.addClass('masonry-2');
-			$views.addClass('triple');
-			$views.removeClass('masonry-1');
-			$('.layout-btn.active').removeClass('active');
-			$trg.addClass('active');
-			$('.selectedPlayer').removeClass('selectedPlayer');
-			$three.addClass('selectedPlayer');
-			closePlayer($four.find('.player-container').children().first());
+			choseWindows(3);
 		} else if ($trg.is('#nav-four-tab')) {
-			$two.removeClass('d-none');
-			$three.removeClass('d-none');
-			$four.removeClass('d-none');
-			$views.addClass('masonry-2');
-			$views.removeClass('triple');
-			$views.removeClass('masonry-1');
-			$('.layout-btn.active').removeClass('active');
-			$('.selectedPlayer').removeClass('selectedPlayer');
-			$four.addClass('selectedPlayer');
-			$trg.addClass('active');
+			choseWindows(4);
 		} else if ($trg.hasClass('closePlayer')) {
 			closePlayer($trg.closest('.player-quad').find('.player-container').children().first());
 			$('.selectedPlayer').removeClass('selectedPlayer');
@@ -500,6 +460,71 @@ $(document).ready(function() {
 	}, 1000)
 });
 
+function choseWindows(number) {
+	mapping[0] = number;
+	const $one = $('#camOne');
+	const $two = $('#camTwo');
+	const $three = $('#camThree');
+	const $four = $('#camFour');
+	const $views = $('#views');
+	$('.selectedPlayer').removeClass('selectedPlayer');
+	$('.layout-btn.active').removeClass('active');
+	switch (number) {
+		case 1:
+			$two.addClass('d-none');
+			$three.addClass('d-none');
+			$four.addClass('d-none');
+			$views.removeClass('masonry-2');
+			$views.removeClass('triple');
+			$views.addClass('masonry-1');
+			$one.addClass('selectedPlayer');
+			$('#nav-one-tab').addClass('active');
+			closePlayer($two.find('.player-container').children().first());
+			closePlayer($three.find('.player-container').children().first());
+			closePlayer($four.find('.player-container').children().first());
+			break;
+		case 2:
+			$two.removeClass('d-none');
+			$three.addClass('d-none');
+			$four.addClass('d-none');
+			$views.addClass('masonry-2');
+			$views.removeClass('triple');
+			$views.removeClass('masonry-1');
+			$two.addClass('selectedPlayer');
+			$('#nav-two-tab').addClass('active');
+			closePlayer($three.find('.player-container').children().first());
+			closePlayer($four.find('.player-container').children().first());
+			break;
+		case 3:
+			$two.removeClass('d-none');
+			$three.removeClass('d-none');
+			$four.addClass('d-none');
+			$views.addClass('masonry-2');
+			$views.addClass('triple');
+			$views.removeClass('masonry-1');
+			$three.addClass('selectedPlayer');
+			$('#nav-three-tab').addClass('active');
+			closePlayer($four.find('.player-container').children().first());
+			break;
+		case 4:
+			$two.removeClass('d-none');
+			$three.removeClass('d-none');
+			$four.removeClass('d-none');
+			$views.addClass('masonry-2');
+			$views.removeClass('triple');
+			$views.removeClass('masonry-1');
+			$four.addClass('selectedPlayer');
+			$('#nav-four-tab').addClass('active');
+			break;
+		default:
+			break;
+	}
+	Cookies.set('mapping', JSON.stringify(mapping), {
+		secure: true,
+		SameSite: 'Lax'
+	});
+}
+
 function openPlayer($element) {
 	const streamURL = $element.data('url');
 	const streamName = $element.data('name');
@@ -511,11 +536,33 @@ function openPlayer($element) {
 	const $curentPlayer = $selectedCont.children().first();
 	const $newPlayer = $(`#${streamName.replace(/ /g, '-')}-player`);
 	if ($curentPlayer.length > 0) closePlayer($curentPlayer);
-	if ($newPlayer.length > 0) closePlayer($newPlayer);
+	if ($newPlayer.length > 0 && !$curentPlayer.is($newPlayer)) closePlayer($newPlayer);
 
 	$selectedCont.html($player);
 	
-	const $selectedTitle = $('.selectedPlayer .player-title');
+	switch ($selectedCont.closest('.player-quad').data('type')) {
+		case 'oneCam':
+			mapping[1] = streamID;
+			break;
+		case 'twoCam':
+			mapping[2] = streamID;
+			break;
+		case 'threeCam':
+			mapping[3] = streamID;
+			break;
+		case 'fourCam':
+			mapping[4] = streamID;
+			break;
+		default:
+			break;
+	}
+	Cookies.set('mapping', JSON.stringify(mapping), {
+		secure: true,
+		SameSite: 'Lax'
+	});
+
+	let $selectedTitle = $('.selectedPlayer .player-title');
+	if ($selectedTitle.length == 0) $selectedTitle = $('#camOne .player-title');
 	$selectedTitle.attr('data-id', streamID);
 	$selectedTitle.html(streamName);
 
@@ -579,6 +626,7 @@ function openPlayer($element) {
 }
 
 function closePlayer($element) {
+	try {
 	const $cont = $element.closest('.player-quad');
 	const $title = $cont.find('.player-title');
 	const title = $title.data('title');
@@ -586,6 +634,29 @@ function closePlayer($element) {
 	$title.data('id', '');
 	OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
 	$element.remove();
+		switch ($cont.data('type')) {
+			case 'oneCam':
+				mapping[1] = 0;
+				break;
+			case 'twoCam':
+				mapping[2] = 0;
+				break;
+			case 'threeCam':
+				mapping[3] = 0;
+				break;
+			case 'fourCam':
+				mapping[4] = 0;
+				break;
+			default:
+				break;
+		}
+		Cookies.set('mapping', JSON.stringify(mapping), {
+			secure: true,
+			SameSite: 'Lax'
+		});
+	} catch (error) {
+		console.log('Issue closing player');
+	}
 }
 
 function getConfig(catagory) {
@@ -640,6 +711,34 @@ function renderStreams() {
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 		</div>`);
 	});
+	const mappingUnparsed = Cookies.get('mapping');
+	if (mappingUnparsed !== undefined) {
+		mapping = JSON.parse(mappingUnparsed);
+		choseWindows(mapping[0]);
+		for (let window = 1; window < mapping[0]+1; window++) {
+			const source = mapping[window];
+			if (source == 0) continue;
+			$('.selectedPlayer').removeClass('selectedPlayer');
+			switch (window) {
+				case 1:
+					$('#camOne').addClass('selectedPlayer')
+					break;
+				case 2:
+					$('#camTwo').addClass('selectedPlayer')
+					break;
+				case 3:
+					$('#camThree').addClass('selectedPlayer')
+					break;
+				case 4:
+					$('#camFour').addClass('selectedPlayer')
+					break;
+				default:
+					break;
+			}
+			openPlayer($(`.sourceSelect[data-id="${source}"]`));
+			$('.selectedPlayer').removeClass('selectedPlayer');
+		}
+	}
 }
 
 
