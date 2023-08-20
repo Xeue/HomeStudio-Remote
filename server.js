@@ -3,16 +3,17 @@ const fs = require('fs');
 const express = require('express');
 const path = require('path');
 const {log, logObj, logs, logEvent} = require('xeue-logs');
-const {config} = require('xeue-config');
+const {Config} = require('xeue-config');
 const {Server} = require('xeue-webserver');
 const {version} = require('./package.json');
+const {Shell} = require('xeue-shell');
 const electronEjs = require('electron-ejs');
 const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
 const AutoLaunch = require('auto-launch');
-const {exec} = require('child_process');
 const fetch = require('node-fetch');
 
 let webServer;
+const config = new Config(logs);
 const __main = path.resolve(__dirname);
 const __data = path.resolve(app.getPath('documents'));
 const __static = path.resolve(__dirname+"/static");
@@ -20,7 +21,6 @@ const __static = path.resolve(__dirname+"/static");
 const ejs = new electronEjs({'static': __static}, {});
 
 const omeVersion = "dev";
-//const omeVersion = "latest";
 const dockerConfigPath = `${path.dirname(app.getPath('exe'))}/ome/`;
 const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9999:9999/udp -p 9000:9000 -p 8081:8081 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${dockerConfigPath}:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:${omeVersion}`
 
@@ -39,7 +39,6 @@ let configLoaded = false;
 
 	{ /* Config */
 		logs.printHeader('HomeStudio');
-		config.useLogger(logs);
 		config.require('omeType', {
 			'docker':'Docker',
 			'native':'Installed Locally',
@@ -116,31 +115,7 @@ let configLoaded = false;
 		configLoaded = true;
 	}
 
-	if (config.get('omeType') == 'docker') {
-		log('Updaing Media Server config', ['C', 'SERVER', logs.g]);
-		if (!fs.existsSync(dockerConfigPath)){
-			fs.mkdirSync(dockerConfigPath);
-		}
-		fs.copyFile(`${__static}/ome/Server.xml`, `${dockerConfigPath}Server.xml`, (err) => {
-			if (err) logs.error("Couldn't create OME config", err);
-		});
-
-		fs.copyFile(`${__static}/ome/Logger.xml`, `${dockerConfigPath}Logger.xml`, (err) => {
-			if (err) logs.error("Couldn't create OME logging config", err);
-		});
-	
-		log('Checking for Media Server', ['C', 'SHELL', logs.p]);
-		const dockerList = await shellCommandPrintCollect("docker container ls --format='{{.Names}}'");
-		if (!dockerList.includes('ome')) {
-			log('No server found, creating Media Server', ['C', 'SHELL', logs.p]);
-			await shellCommandPrint(dockerCommand);
-		} else {
-			log('Starting existing Media Server', ['C', 'SHELL', logs.p]);
-			await shellCommandPrint('docker start ome');
-		}
-		
-		log('Media Server Started', ['C', 'SHELL', logs.p]);
-	}
+	if (config.get('omeType') == 'docker') await startDocker();
 
 	webServer = new Server(
 		config.get('port'),
@@ -151,7 +126,7 @@ let configLoaded = false;
 		doMessage
 	);
 
-	log(`HomeStudio Local can be accessed at http://localhost:${config.get('port')}`, 'C');
+	log(`${config.get('systemName')} can be accessed at http://${config.get('host')}:${config.get('port')}`, ['H', 'SERVER', logs.g]);
 
 	webServer.start();
 	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
@@ -328,6 +303,57 @@ async function configDone() {
 			logs
 		);
 		await SQL.init(tables);
+	}
+}
+
+async function startDocker() {
+	const shell = new Shell(logs, 'DOCKER', 'D', 'powershell.exe');
+
+	log('Updaing Media Server config', ['C', 'SERVER', logs.g]);
+
+	if (!fs.existsSync(dockerConfigPath)) fs.mkdirSync(dockerConfigPath);
+	fs.copyFile(`${__static}/ome/Server.xml`, `${dockerConfigPath}Server.xml`, (err) => {
+		if (err) logs.error("Couldn't create OME config", err);
+	});
+	fs.copyFile(`${__static}/ome/Logger.xml`, `${dockerConfigPath}Logger.xml`, (err) => {
+		if (err) logs.error("Couldn't create OME logging config", err);
+	});
+
+	log('Checking for docker setup', ['C', 'DOCKER', logs.p]);
+	const dockerFullVersion = await shell.run("docker version");
+	if (dockerFullVersion.hasErrors) {
+		log('Cannot connect to docker, checking if it is installed', ['C', 'DOCKER', logs.r]);
+		const dockerVersion = await shell.run("docker --version");
+		if (dockerVersion.hasErrors) {
+			log('Docker is not installed, please install docker on this system to continue', ['C', 'DOCKER', logs.r]);
+			return;
+		}
+		log('Docker is installed, attempting to start docker', ['C', 'DOCKER', logs.p]);
+		const dockerStart = await shell.run('Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
+		if (dockerStart.hasErrors) {
+			log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logs.r]);
+			return;
+		}
+		const dockerNewFullVersion = await shell.run("docker version");
+		if (dockerNewFullVersion.hasErrors) {
+			log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logs.r]);
+			return;
+		}
+		log('Docker started', ['C', 'DOCKER', logs.p]);
+	}
+
+	log('Checking for Media Server', ['C', 'DOCKER', logs.p]);
+	const dockerContainer = await shell.run("docker container ls --format='{{.Names}}'");
+	if (dockerContainer.stdout.includes('ome')) {
+		log('Starting existing Media Server', ['C', 'DOCKER', logs.p]);
+		await shell.run("docker start ome");
+		log('Media Server Started', ['C', 'DOCKER', logs.p]);
+	} else if (dockerContainer.hasErrors) {
+		log('Cannot connect to docker, please make sure it is running', ['C', 'DOCKER', logs.r]);
+	} else {
+		log('No server found, creating Media Server', ['C', 'DOCKER', logs.p]);
+		await shell.run(dockerCommand);
+		log('Media Server Created and Started', ['C', 'DOCKER', logs.p]);
 	}
 }
 
@@ -534,46 +560,6 @@ function writeData(file, data) {
 	}
 }
 
-async function shellCommandPrint(command) {
-	return new Promise((resolve, reject) => {
-		const proc = exec(command, {'shell':'powershell.exe'});
-		proc.stdout.on('data', data => {
-			const output = data.trim();
-			if (output != "") log(output, ['C', 'SHELL', logs.p])
-		});
-		proc.stderr.on('data', data => {
-			log(data, ['C', 'SHELL', logs.r])
-		});
-		proc.on('exit', code => {
-			resolve(code);
-		});
-		proc.on('error', error => {
-			reject(error);
-		});
-	});
-}
-
-async function shellCommandPrintCollect(command) {
-	return new Promise((resolve, reject) => {
-		let text = '';
-		const proc = exec(command, {'shell':'powershell.exe'});
-		proc.stdout.on('data', data => {
-			const output = data.trim();
-			text += output;
-			if (output != "") log(output, ['C', 'SHELL', logs.p])
-		});
-		proc.stderr.on('data', data => {
-			log(data, ['C', 'SHELL', logs.r])
-		});
-		proc.on('exit', () => {
-			resolve(text);
-		});
-		proc.on('error', error => {
-			reject(error);
-		});
-	});
-}
-
 async function sleep(seconds) {
 	await new Promise (resolve => setTimeout(resolve, 1000*seconds));
 }
@@ -597,7 +583,7 @@ async function startPush(id) {
 		})
 		const jsonRpcResponse = await response.json();
 		if (response.status !== 200) {
-			logs.error('Could not reach OME server', response.statusText);
+			logs.warn('Could not reach OME server', response.statusText);
 			webServer.sendToAll({
 				"command": "log",
 				"type": "decoding",
@@ -612,7 +598,7 @@ async function startPush(id) {
 		});
 		return jsonRpcResponse;
 	} catch (error) {
-		logs.error('Could not reach OME server', error);
+		logs.warn('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
@@ -635,7 +621,7 @@ async function stopPush(id) {
 		})
 		const jsonRpcResponse = await response.json();
 		if (response.status !== 200) {
-			logs.error('Could not reach OME server', response.statusText);
+			logs.warn('Could not reach OME server', response.statusText);
 			webServer.sendToAll({
 				"command": "log",
 				"type": "decoding",
@@ -650,7 +636,7 @@ async function stopPush(id) {
 		});
 		return jsonRpcResponse;	
 	} catch (error) {
-		logs.error('Could not reach OME server', error);
+		logs.warn('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
@@ -671,7 +657,7 @@ async function getPush(id) {
 		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, postOptions)
 		const jsonRpcResponse = await response.json();
 		if (response.status !== 200) {
-			logs.error('Could not reach OME server', response.statusText);
+			logs.warn('Could not reach OME server', response.statusText);
 			webServer.sendToAll({
 				"command": "log",
 				"type": "decoding",
@@ -686,7 +672,7 @@ async function getPush(id) {
 		});
 		return jsonRpcResponse;
 	} catch (error) {
-		logs.error('Could not reach OME server', error);
+		logs.warn('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
