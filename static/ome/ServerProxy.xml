@@ -155,6 +155,38 @@
 									<Codec>opus</Codec>
 									<Bitrate>128000</Bitrate>
 									<Samplerate>48000</Samplerate>
+									<Channel>2</Channel>									
+								</Audio>
+							</Encodes>
+						</OutputProfile>
+						<OutputProfile>
+							<Name>lowres_stream</Name>
+							<OutputStreamName>${OriginStreamName}_lowres</OutputStreamName>
+							<Encodes>
+								<Video>
+									<Name>h264_lowres</Name>
+									<Codec>h264</Codec>
+									<Width>960</Width>
+									<Height>540</Height>
+									<Bitrate>2000000</Bitrate>
+									<Framerate>30.0</Framerate>
+									<KeyFrameInterval>30</KeyFrameInterval>
+									<BFrames>0</BFrames>
+									<Preset>fast</Preset>
+									<ThreadCount>4</ThreadCount>
+								</Video>
+								<Audio>
+									<Name>aac_audio</Name>
+									<Codec>aac</Codec>
+									<Bitrate>128000</Bitrate>
+									<Samplerate>48000</Samplerate>
+									<Channel>2</Channel>
+								</Audio>								
+								<Audio>
+									<Name>opus_audio</Name>
+									<Codec>opus</Codec>
+									<Bitrate>128000</Bitrate>
+									<Samplerate>48000</Samplerate>
 									<Channel>2</Channel>								
 								</Audio>
 							</Encodes>

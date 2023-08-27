@@ -10,6 +10,7 @@ let mapping = [
 	0,
 	0
 ];
+let activeLayout = 0;
 
 templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
@@ -148,7 +149,7 @@ $(document).ready(function() {
 
 	$(document).click(function(e) {
 		const $trg = $(e.target);
-		if ($trg.is('#toggleConfig') || $trg.is('#closeConfig')) {
+		if ($trg.is('#toggleConfig')) {
 			if ($('#config').hasClass('hidden')) {
 				loading(true);
 				Promise.allSettled([
@@ -166,6 +167,24 @@ $(document).ready(function() {
 			} else {
 				$('#config').addClass('hidden');
 			}
+		} else if ($trg.is('#layoutConfig')) {
+			if ($('#layout').hasClass('hidden')) {
+				loading(true);
+				Promise.allSettled([
+					getConfig('layouts')
+				]).then(values => {
+					const [layouts] = values;
+					loading(false);
+					console.log(layouts);
+					$('#layout').removeClass('hidden');
+				}).catch(error => {
+					console.error(error);
+				});
+			} else {
+				$('#layout').addClass('hidden');
+			}
+		} else if ($trg.is('#closeConfig')) {
+			$('.popup').addClass('hidden');
 		} else if ($trg.hasClass('tableExport')) {
 			const $table = $('.tab-pane.active table[data-editor]');
 			const editor = $table.data('editor');
@@ -433,6 +452,16 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('player-quad') || $trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
+		} else if ($trg.hasClass('layoutSave')) {
+
+		} else if ($trg.hasClass('addPip')) {
+			
+		} else if ($trg.hasClass('addLayout')) {
+			
+		} else if ($trg.hasClass('layoutConfigSelect')) {
+			const layoutID = $trg.data('id');
+			activeLayout = layoutID;
+			drawConfigLayout();
 		} else if (!$trg.hasClass('player-quad') && !$trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 		}
@@ -458,6 +487,14 @@ $(document).ready(function() {
 			} else {
 				$encoder.html('');
 			}
+		} else if ($trg.is('#layoutCols')) {
+			const cols = Number($trg.val());
+			layouts.filter(layout => layout.ID == activeLayout)[0].Columns = cols;
+			drawConfigLayout();
+		} else if ($trg.is('#layoutRows')) {
+			const rows = Number($trg.val());
+			layouts.filter(layout => layout.ID == activeLayout)[0].Rows = rows;
+			drawConfigLayout();
 		}
 	});
 
@@ -467,6 +504,19 @@ $(document).ready(function() {
 		}
 	}, 1000)
 });
+
+function drawConfigLayout() {
+	const thisLayout = layouts.filter(layout => layout.ID == activeLayout)[0];
+	const $cont = $("#layoutGridCont");
+	$cont.attr("data-cols", thisLayout.Columns);
+	$cont.attr("data-rows", thisLayout.Rows);
+	$('#layoutCols').val(thisLayout.Columns);
+	$('#layoutRows').val(thisLayout.Rows);
+	$cont.html('');
+	for (let pip = 1; pip < (thisLayout.Columns * thisLayout.Rows)+1; pip++) {
+		$cont.append(`<div class="layoutPlaceholder" data-pip="${pip}">${pip}</div>`);
+	}
+};
 
 function choseWindows(number) {
 	mapping[0] = number;
@@ -575,7 +625,10 @@ function openPlayer($element) {
 	switch (streamType) {
 		case 'Local Encoder':
 		case 'Homestudio WebRTC':
-			const resolution = $('#nav-one-tab').hasClass('active') ? "" : "_lowres";
+			let resolution = "";
+			if (allowLowres && !$('#nav-one-tab').hasClass('active')) {
+				resolution = "_lowres";
+			}
 			const player = OvenPlayer.create(`${streamName.replace(/ /g, '-')}-player`, {
 				sources:[{
 					label: streamName,
@@ -698,6 +751,20 @@ function download(filename, text) {
 }
 
 function renderStreams() {
+	buildThumbnails();
+	switch (layout) {
+		case "basic":
+			buildLayoutBasic();
+			break;
+		case "advanced":
+			buildLayoutAdvanced();
+			break;
+		default:
+			break;
+	}
+}
+
+function buildThumbnails() {
 	$aside = $('#tumbList');
 	$aside.html('');
 	encoders.forEach(encoder => {
@@ -716,6 +783,9 @@ function renderStreams() {
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 		</div>`);
 	});
+}
+
+function buildLayoutBasic() {
 	const mappingUnparsed = Cookies.get('mapping');
 	if (mappingUnparsed !== undefined) {
 		mapping = JSON.parse(mappingUnparsed);
@@ -746,6 +816,9 @@ function renderStreams() {
 	}
 }
 
+function buildLayoutAdvanced() {
+	console.log("WIP");
+}
 
 let beforeInstallPrompt = null;
 

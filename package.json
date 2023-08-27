@@ -44,16 +44,16 @@
   "dependencies": {
     "auto-launch": "^5.0.6",
     "ejs": "^3.1.9",
-    "electron-ejs": "^1.2.1",
+    "ejs-electron": "^2.1.1",
     "express": "^4.18.2",
     "node-fetch": "^2.6.7",
-    "xeue-config": "^2.0.1",
-    "xeue-logs": "^1.7.5",
-    "xeue-shell": "^1.0.3",
-    "xeue-webserver": "^1.0.5"
+    "xeue-config": "^2.1.0",
+    "xeue-logs": "^2.0.0",
+    "xeue-shell": "^1.2.0",
+    "xeue-webserver": "^2.0.0"
   },
   "devDependencies": {
-    "electron": "^25.2.0",
-    "electron-builder": "^24.4.0"
+    "electron": "^26.1.0",
+    "electron-builder": "^24.6.3"
   }
 }

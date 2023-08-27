@@ -2,23 +2,41 @@
 const fs = require('fs');
 const express = require('express');
 const path = require('path');
-const {log, logObj, logs, logEvent} = require('xeue-logs');
+const {Logs} = require('../XeueLogs/Logs.js');
+//const {Logs} = require('xeue-logs');
 const {Config} = require('xeue-config');
 const {Server} = require('xeue-webserver');
 const {version} = require('./package.json');
 const {Shell} = require('xeue-shell');
-const electronEjs = require('electron-ejs');
 const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
 const AutoLaunch = require('auto-launch');
 const fetch = require('node-fetch');
+const ejse = require('ejs-electron')
 
-let webServer;
-const config = new Config(logs);
 const __main = path.resolve(__dirname);
 const __data = path.resolve(app.getPath('documents'));
 const __static = path.resolve(__dirname+"/static");
 
-const ejs = new electronEjs({'static': __static}, {});
+
+const logger = new Logs(
+	false,
+	'HomeStudioLogging',
+	path.join(__data, 'HomeStudioData'),
+	'D',
+	false
+)
+const config = new Config(
+	logger
+);
+const webServer = new Server(
+	expressRoutes,
+	logger,
+	version,
+	config,
+	doMessage
+);
+
+ejse.data('static',  __static);
 
 const omeVersion = "dev";
 const dockerConfigPath = `${path.dirname(app.getPath('exe'))}/ome/`;
@@ -38,7 +56,7 @@ let configLoaded = false;
 	await createWindow();
 
 	{ /* Config */
-		logs.printHeader('HomeStudio');
+		logger.printHeader('HomeStudio');
 		config.require('omeType', {
 			'docker':'Docker',
 			'native':'Installed Locally',
@@ -51,9 +69,10 @@ let configLoaded = false;
 		config.require('host', [], 'What is the IP/host of Oven Media Engine? (normally this machines IP)');
 		config.require('port', [], 'What port shall the server use');
 		config.require('systemName', [], 'What is the name of the system/job');
+		config.require('allowLowres', {true: 'Yes', false: 'No'}, 'Generate lowres proxys for small pips');
 		config.require('reconnectTimeoutSeconds', [], 'How long should a stream wait before trying to reconnect in the GUI');
 		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
-		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save logs to local file');
+		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save Logs to local file');
 		config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings');
 		{
 			config.require('debugLineNum', {true: 'Yes', false: 'No'}, 'Print line numbers?', ['advancedConfig', true]);
@@ -65,6 +84,7 @@ let configLoaded = false;
 		config.default('systemName', 'Home Studio');
 		config.default('loggingLevel', 'W');
 		config.default('homestudioKey', '');
+		config.default('allowLowres', true);
 		config.default('createLogFile', true);
 		config.default('debugLineNum', false);
 		config.default('printPings', false);
@@ -84,16 +104,17 @@ let configLoaded = false;
 			config.set('debugLineNum', true);
 		}
 
-		logs.setConf({
-			'createLogFile': config.get('createLogFile'),
-			'logsFileName': 'HomeStudioLogging',
-			'configLocation': path.join(__data, 'HomeStudioData'),
-			'loggingLevel': config.get('loggingLevel'),
-			'debugLineNum': config.get('debugLineNum'),
-		});
-		log('Running version: v'+version, ['H', 'SERVER', logs.g]);
-		log(`Logging to: ${path.join(__data, 'HomeStudioData', 'logs')}`, ['H', 'SERVER', logs.g]);
-		log(`Config saved to: ${path.join(__data, 'HomeStudioData', 'config.conf')}`, ['H', 'SERVER', logs.g]);
+		logger.setConf(
+			config.get('createLogFile'),
+			'HomeStudioLogging',
+			path.join(__data, 'HomeStudioData'),
+			config.get('loggingLevel'),
+			config.get('debugLineNum')
+		)
+
+		logger.log('Running version: v'+version, ['H', 'SERVER', logger.g]);
+		logger.log(`Logging to: ${path.join(__data, 'HomeStudioData', 'Logs')}`, ['H', 'SERVER', logger.g]);
+		logger.log(`Config saved to: ${path.join(__data, 'HomeStudioData', 'config.conf')}`, ['H', 'SERVER', logger.g]);
 		config.print();
 		config.userInput(async command => {
 			switch (command) {
@@ -102,9 +123,9 @@ let configLoaded = false;
 				if (config.get('loggingLevel') == 'D' || config.get('loggingLevel') == 'A') {
 					config.set('debugLineNum', true);
 				}
-				logs.setConf({
+				logger.setConf({
 					'createLogFile': config.get('createLogFile'),
-					'logsFileName': 'HomeStudioLogging',
+					'LogsFileName': 'HomeStudioLogging',
 					'configLocation': path.join(__data, 'HomeStudioData'),
 					'loggingLevel': config.get('loggingLevel'),
 					'debugLineNum': config.get('debugLineNum')
@@ -117,18 +138,9 @@ let configLoaded = false;
 
 	if (config.get('omeType') == 'docker') await startDocker();
 
-	webServer = new Server(
-		config.get('port'),
-		expressRoutes,
-		logs,
-		version,
-		config,
-		doMessage
-	);
+	logger.log(`${config.get('systemName')} can be accessed at http://${config.get('host')}:${config.get('port')}`, ['H', 'SERVER', logger.g]);
 
-	log(`${config.get('systemName')} can be accessed at http://${config.get('host')}:${config.get('port')}`, ['H', 'SERVER', logs.g]);
-
-	webServer.start();
+	webServer.start(config.get('port'));
 	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
 	const Decoders = decoders()
 	for (let index = 0; index < Decoders.length; index++) {
@@ -180,7 +192,7 @@ async function setUpApp() {
 			config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData','config.conf'), configQuestion, configDone);
 			break;
 		case 'stop':
-			log('Not implemeneted yet: Cancle config change');
+			logger.log('Not implemeneted yet: Cancle config change');
 			break;
 		case 'show':
 			config.print();
@@ -206,7 +218,7 @@ async function setUpApp() {
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
 
-	logEvent.on('logSend', message => {
+	logger.on('logSend', message => {
 		if (!isQuiting) mainWindow.webContents.send('log', message);
 	});
 }
@@ -250,7 +262,7 @@ async function createWindow() {
 		mainWindow.hide();
 	});
 
-	mainWindow.loadURL(path.resolve(__main, 'views/app.ejs'));
+	mainWindow.loadURL('file://' + __main + '/views/app.ejs');
 
 	await new Promise(resolve => {
 		ipcMain.on('ready', (event, ready) => {
@@ -285,9 +297,9 @@ async function configQuestion(question, current, options) {
 
 async function configDone() {
 	mainWindow.webContents.send('configDone', true);
-	logs.setConf({
+	logger.setConf({
 		'createLogFile': config.get('createLogFile'),
-		'logsFileName': 'ArgosLogging',
+		'LogsFileName': 'ArgosLogging',
 		'configLocation': path.join(app.getPath('documents'), 'ArgosData'),
 		'loggingLevel': config.get('loggingLevel'),
 		'debugLineNum': config.get('debugLineNum'),
@@ -300,60 +312,66 @@ async function configDone() {
 			config.get('dbUser'),
 			config.get('dbPass'),
 			config.get('dbName'),
-			logs
+			Logs
 		);
 		await SQL.init(tables);
 	}
 }
 
 async function startDocker() {
-	const shell = new Shell(logs, 'DOCKER', 'D', 'powershell.exe');
+	const shell = new Shell(logger, 'DOCKER', 'D', 'powershell.exe');
 
-	log('Updaing Media Server config', ['C', 'SERVER', logs.g]);
+	logger.log('Updating Media Server config', ['C', 'SERVER', logger.g]);
 
 	if (!fs.existsSync(dockerConfigPath)) fs.mkdirSync(dockerConfigPath);
-	fs.copyFile(`${__static}/ome/Server.xml`, `${dockerConfigPath}Server.xml`, (err) => {
-		if (err) logs.error("Couldn't create OME config", err);
-	});
+	if (config.get('allowLowres')) {
+		fs.copyFile(`${__static}/ome/ServerProxy.xml`, `${dockerConfigPath}Server.xml`, (err) => {
+			if (err) logger.error("Couldn't create OME config", err);
+		});
+	} else {
+		fs.copyFile(`${__static}/ome/Server.xml`, `${dockerConfigPath}Server.xml`, (err) => {
+			if (err) logger.error("Couldn't create OME config", err);
+		});
+	}
 	fs.copyFile(`${__static}/ome/Logger.xml`, `${dockerConfigPath}Logger.xml`, (err) => {
-		if (err) logs.error("Couldn't create OME logging config", err);
+		if (err) logger.error("Couldn't create OME logging config", err);
 	});
 
-	log('Checking for docker setup', ['C', 'DOCKER', logs.p]);
+	logger.log('Checking for docker setup', ['C', 'DOCKER', logger.p]);
 	const dockerFullVersion = await shell.run("docker version");
 	if (dockerFullVersion.hasErrors) {
-		log('Cannot connect to docker, checking if it is installed', ['C', 'DOCKER', logs.r]);
+		logger.log('Cannot connect to docker, checking if it is installed', ['C', 'DOCKER', logger.r]);
 		const dockerVersion = await shell.run("docker --version");
 		if (dockerVersion.hasErrors) {
-			log('Docker is not installed, please install docker on this system to continue', ['C', 'DOCKER', logs.r]);
+			logger.log('Docker is not installed, please install docker on this system to continue', ['C', 'DOCKER', logger.r]);
 			return;
 		}
-		log('Docker is installed, attempting to start docker', ['C', 'DOCKER', logs.p]);
+		logger.log('Docker is installed, attempting to start docker', ['C', 'DOCKER', logger.p]);
 		const dockerStart = await shell.run('Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
 		if (dockerStart.hasErrors) {
-			log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logs.r]);
+			logger.log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logger.r]);
 			return;
 		}
 		const dockerNewFullVersion = await shell.run("docker version");
 		if (dockerNewFullVersion.hasErrors) {
-			log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logs.r]);
+			logger.log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logger.r]);
 			return;
 		}
-		log('Docker started', ['C', 'DOCKER', logs.p]);
+		logger.log('Docker started', ['C', 'DOCKER', logger.p]);
 	}
 
-	log('Checking for Media Server', ['C', 'DOCKER', logs.p]);
+	logger.log('Checking for Media Server', ['C', 'DOCKER', logger.p]);
 	const dockerContainer = await shell.run("docker container ls --format='{{.Names}}'");
 	if (dockerContainer.stdout.includes('ome')) {
-		log('Starting existing Media Server', ['C', 'DOCKER', logs.p]);
+		logger.log('Starting existing Media Server', ['C', 'DOCKER', logger.p]);
 		await shell.run("docker start ome");
-		log('Media Server Started', ['C', 'DOCKER', logs.p]);
+		logger.log('Media Server Started', ['C', 'DOCKER', logger.p]);
 	} else if (dockerContainer.hasErrors) {
-		log('Cannot connect to docker, please make sure it is running', ['C', 'DOCKER', logs.r]);
+		logger.log('Cannot connect to docker, please make sure it is running', ['C', 'DOCKER', logger.r]);
 	} else {
-		log('No server found, creating Media Server', ['C', 'DOCKER', logs.p]);
+		logger.log('No server found, creating Media Server', ['C', 'DOCKER', logger.p]);
 		await shell.run(dockerCommand);
-		log('Media Server Created and Started', ['C', 'DOCKER', logs.p]);
+		logger.log('Media Server Created and Started', ['C', 'DOCKER', logger.p]);
 	}
 }
 
@@ -370,57 +388,66 @@ function decoders(id) {
 	return Decoders;
 }
 
+function layouts(id) {
+	const Layouts = loadData('Layouts');
+	if (id !== undefined) return Layouts.filter(layout => layout.ID == id);
+	return Layouts;
+}
+
 function expressRoutes(expressApp) {
 	expressApp.set('views', path.join(__main, 'views'));
 	expressApp.set('view engine', 'ejs');
 	expressApp.use(express.json());
 	expressApp.use(express.static(__static));
 
+	const homeOptions = {
+		systemName:config.get('systemName'),
+		version: version,
+		homestudioKey: config.get('homestudioKey'),
+		encoders: encoders(),
+		decoders: decoders(),
+		layouts: layouts(),
+		host: config.get('host'),
+		dockerCommand: dockerCommand,
+		reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
+		allowLowres: config.get('allowLowres')
+	}
+
 	expressApp.get('/',  (req, res) =>  {
-		log('New client connected', 'A');
+		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
-		res.render('home', {
-			systemName:config.get('systemName'),
-			version: version,
-			homestudioKey: config.get('homestudioKey'),
-			encoders: encoders(),
-			decoders: decoders(),
-			host: config.get('host'),
-			dockerCommand: dockerCommand,
-			reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
-			config: false
-		});
+		homeOptions.config = false;
+		homeOptions.layout = "basic";
+		homeOptions.inApp = false;
+		res.render('home', homeOptions);
 	});
 	expressApp.get('/config',  (req, res) =>  {
-		log('New client connected', 'A');
+		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
-		res.render('home', {
-			systemName:config.get('systemName'),
-			version: version,
-			homestudioKey: config.get('homestudioKey'),
-			encoders: encoders(),
-			decoders: decoders(),
-			host: config.get('host'),
-			dockerCommand: dockerCommand,
-			reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
-			config: true
-		});
+		homeOptions.config = true;
+		homeOptions.layout = "basic";
+		homeOptions.inApp = false;
+		res.render('home', homeOptions);
+	});
+	expressApp.get('/advanced',  (req, res) =>  {
+		logger.log('New client connected', 'A');
+		res.header('Content-type', 'text/html');
+		homeOptions.config = false;
+		homeOptions.layout = "advanced";
+		homeOptions.inApp = false;
+		res.render('home', homeOptions);
 	});
 	expressApp.get('/app',  (req, res) =>  {
-		log('New client connected', 'A');
+		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
-		res.render('appHome', {
-			systemName:config.get('systemName'),
-			version: version,
-			homestudioKey: config.get('homestudioKey'),
-			encoders: encoders(),
-			decoders: decoders(),
-			host: config.get('host'),
-			dockerCommand: dockerCommand
-		});
+		homeOptions.config = true;
+		homeOptions.layout = "thumbnail";
+		homeOptions.inApp = true;
+		res.render('home', homeOptions);
 	});
+
 	expressApp.get('/getConfig', (req, res) => {
-		log('Request for devices config', 'D');
+		logger.log('Request for devices config', 'D');
 		let catagory = req.query.catagory;
 		let data;
 		switch (catagory) {
@@ -430,6 +457,9 @@ function expressRoutes(expressApp) {
 		case 'decoders':
 			data = decoders();
 			break;
+		case 'layouts':
+			data = layouts();
+			break;
 		default:
 			break;
 		}
@@ -438,7 +468,7 @@ function expressRoutes(expressApp) {
 	});
 
 	expressApp.post('/setencoders', (req, res) => {
-		log('Request to set encoders config data', 'D');
+		logger.log('Request to set encoders config data', 'D');
 		webServer.sendToAll({
 			"command":"feeds",
 			"feeds":req.body
@@ -446,10 +476,18 @@ function expressRoutes(expressApp) {
 		writeData('Encoders', req.body);
 		res.send('Done');
 	});
-
 	expressApp.post('/setdecoders', (req, res) => {
-		log('Request to set decoders config data', 'D');
+		logger.log('Request to set decoders config data', 'D');
 		writeData('Decoders', req.body);
+		res.send('Done');
+	});
+	expressApp.post('/setlayouts', (req, res) => {
+		logger.log('Request to set layouts config data', 'D');
+		webServer.sendToAll({
+			"command":"layouts",
+			"layouts":req.body
+		});
+		writeData('Layouts', req.body);
 		res.send('Done');
 	});
 }
@@ -469,7 +507,7 @@ async function doMessage(msgObj, socket) {
 		config.set('homestudioKey', payload.key);
 		break;
 	case 'register':
-		logs.log('Client registered', 'A');
+		logger.log('Client registered', 'A');
 		break;
 	case 'startSRTPush':
 		startPush(payload.id);
@@ -521,8 +559,8 @@ function loadData(file) {
 			return [];
 		}
 	} catch (error) {
-		log(`Cloud not read the file ${file}.json, attempting to create new file`, 'W');
-		logs.debug('File error:', error);
+		logger.log(`Cloud not read the file ${file}.json, attempting to create new file`, 'W');
+		logger.debug('File error:', error);
 		const fileData = [];
 		switch (file) {
 		case 'Encoders':
@@ -541,6 +579,44 @@ function loadData(file) {
 				'URL':'ws://IPAddress:3333',
 				'Feed':'Feed1'
 			};
+			break;
+		case 'Layouts':
+			fileData[
+				{
+					'Name':'Fullframe',
+					'ID':1,
+					'Columns':1,
+					'Rows':1,
+					'Pips':{
+
+					},
+					'Mapping':{
+
+					}
+				},{
+					'Name':'Dual',
+					'ID':2,
+					'Columns':2,
+					'Rows':1,
+					'Pips':{
+
+					},
+					'Mapping':{
+
+					}
+				},{
+					'Name':'Quad',
+					'ID':3,
+					'Columns':2,
+					'Rows':2,
+					'Pips':{
+
+					},
+					'Mapping':{
+
+					}
+				}
+			]
 			break;
 		default:
 			break;
@@ -574,7 +650,7 @@ async function startPush(id) {
 		"protocol": "srt",
 		"url": decoderConfig.URL+"?mode=caller"
 	}
-	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`);
+	logger.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`);
 	try {
 		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
 			method: 'POST',
@@ -583,7 +659,7 @@ async function startPush(id) {
 		})
 		const jsonRpcResponse = await response.json();
 		if (response.status !== 200) {
-			logs.warn('Could not reach OME server', response.statusText);
+			logger.warn('Could not reach OME server', response.statusText);
 			webServer.sendToAll({
 				"command": "log",
 				"type": "decoding",
@@ -598,7 +674,7 @@ async function startPush(id) {
 		});
 		return jsonRpcResponse;
 	} catch (error) {
-		logs.warn('Could not reach OME server', error);
+		logger.warn('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
@@ -612,7 +688,7 @@ async function stopPush(id) {
 	const body = {
 		"id": "push_decoder_"+id
 	}
-	logs.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`);
+	logger.debug(`Sending push request to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`);
 	try {
 		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`,{
 			method: 'POST',
@@ -621,7 +697,7 @@ async function stopPush(id) {
 		})
 		const jsonRpcResponse = await response.json();
 		if (response.status !== 200) {
-			logs.warn('Could not reach OME server', response.statusText);
+			logger.warn('Could not reach OME server', response.statusText);
 			webServer.sendToAll({
 				"command": "log",
 				"type": "decoding",
@@ -636,7 +712,7 @@ async function stopPush(id) {
 		});
 		return jsonRpcResponse;	
 	} catch (error) {
-		logs.warn('Could not reach OME server', error);
+		logger.warn('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",
@@ -652,12 +728,12 @@ async function getPush(id) {
 		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')}
 	}
 	if (id) postOptions.body = JSON.stringify({"id": "push_decoder_"+id});
-	logs.debug(`Getting pushes from to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`);
+	logger.log(`Getting pushes from to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, 'A');
 	try {
 		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, postOptions)
 		const jsonRpcResponse = await response.json();
 		if (response.status !== 200) {
-			logs.warn('Could not reach OME server', response.statusText);
+			logger.warn('Could not reach OME server', response.statusText);
 			webServer.sendToAll({
 				"command": "log",
 				"type": "decoding",
@@ -672,7 +748,7 @@ async function getPush(id) {
 		});
 		return jsonRpcResponse;
 	} catch (error) {
-		logs.warn('Could not reach OME server', error);
+		logger.warn('Could not reach OME server', error);
 		webServer.sendToAll({
 			"command": "log",
 			"type": "decoding",

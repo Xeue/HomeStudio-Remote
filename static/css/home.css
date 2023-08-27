@@ -10,7 +10,7 @@ html {
     transform: rotateZ(72deg);
 }
 
-#config {
+.popup {
   position: fixed;
   background: rgba(0,0,0,0.5);
   opacity: 1;
@@ -20,11 +20,11 @@ html {
   z-index: 10;
 }
 
-#config > section {
+.popup > section {
   max-height: 100%;
 }
 
-#config.hidden {
+.popup.hidden {
   opacity: 0;
   pointer-events: none;
 }
@@ -56,7 +56,7 @@ td {
   justify-content: space-between;
 }
 
-#config th {
+.popup th {
   background-color: rgb(37, 43, 50);
 }
 
@@ -325,4 +325,67 @@ nav.drag {
 .setting-holder.op-navigators,
 .op-navigators.op-play-controller {
   display: none !important;
+}
+
+
+
+
+
+
+
+
+
+
+#layoutGridCont {
+  display: grid;
+  aspect-ratio: 16/9;
+  gap: 0.5rem;
+}
+
+#layoutGridCont[data-rows="1"] {
+  grid-template-rows: repeat(1, 1fr);
+}
+
+#layoutGridCont[data-rows="2"] {
+  grid-template-rows: repeat(2, 1fr);
+}
+
+#layoutGridCont[data-rows="3"] {
+  grid-template-rows: repeat(3, 1fr);
+}
+
+#layoutGridCont[data-rows="4"] {
+  grid-template-rows: repeat(4, 1fr);
+}
+
+
+#layoutGridCont[data-cols="1"] {
+  grid-template-columns: repeat(1, 1fr);
+}
+
+#layoutGridCont[data-cols="2"] {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+#layoutGridCont[data-cols="3"] {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+#layoutGridCont[data-cols="4"] {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+#layoutGridCont[data-cols="5"] {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+#layoutGridCont[data-cols="6"] {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.layoutPlaceholder {
+  border: 1px solid #3b3f44;
+  border-radius: 5px;
+  box-shadow: #000 0px 0px 10px -5px;
+  padding: 1rem;
 }

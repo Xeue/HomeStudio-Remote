@@ -16,11 +16,15 @@
         const version = '<%=version%>';
 		const homestudioKey = '<%=homestudioKey%>';
         const host = '<%=host%>';
+        const layout = '<%=layout%>';
+        const allowLowres = <%=allowLowres%>;
+        const reconnectTimeoutSeconds = <%=reconnectTimeoutSeconds%>;
 		let encoders = <%- JSON.stringify(encoders) %>;
         let decoders = <%- JSON.stringify(decoders) %>;
-        const reconnectTimeoutSeconds = <%- reconnectTimeoutSeconds %>;
+        let layouts = <%- JSON.stringify(layouts) %>;
         window.encoders = encoders;
         window.decoders = decoders;
+        window.layouts = layouts;
     </script>
     <script type="text/javascript" src="lib/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="lib/bootstrap.min.js"></script>
@@ -49,151 +53,58 @@
 				<div class="w-auto" id="broken"></div>
 			</div>
 		</div>
-		<div role="tablist">
-			<button class="btn btn-secondary layout-btn active" id="nav-one-tab" type="button" aria-selected="true">Single Camera</button>
-			<button class="btn btn-secondary layout-btn" id="nav-two-tab" type="button" aria-selected="true">Dual Camera</button>
-            <button class="btn btn-secondary layout-btn" id="nav-three-tab" type="button" aria-selected="true">Triple Camera</button>
-			<button class="btn btn-secondary layout-btn" id="nav-four-tab" type="button" aria-selected="true">Quad Camera</button>
-		</div>
-        
+        <% switch (layout) {
+            case 'basic' : %>
+                <div role="tablist">
+                    <button class="btn btn-secondary layout-btn active" id="nav-one-tab" type="button" aria-selected="true">Single Camera</button>
+                    <button class="btn btn-secondary layout-btn" id="nav-two-tab" type="button" aria-selected="true">Dual Camera</button>
+                    <button class="btn btn-secondary layout-btn" id="nav-three-tab" type="button" aria-selected="true">Triple Camera</button>
+                    <button class="btn btn-secondary layout-btn" id="nav-four-tab" type="button" aria-selected="true">Quad Camera</button>
+                </div>
+                <% break;
+            case 'advanced' : %>
+                <div role="tablist">
+                    <% layouts.forEach(layout => { %>
+                        <button class="btn btn-secondary layout-btn" id="nav-layout-<%=layout.ID%>-tab" data-id="<%=layout.ID%>" data-bs-toggle="tab" data-bs-target="#layout<%=layout.ID%>" type="button"><%=layout.Name%></button>
+                    <% }) %>
+                </div>
+                <% break;
+            case 'thumbnails' : %>
+                thumbs
+                <% break;
+        } %>
+
         <div class="d-flex gap-1">
-            <button id="installBtn" onclick="install()" class="btn btn-secondary d-none">Install</button>
-		    <% if (config) { %>
-            <button id="toggleConfig" class="btn btn-secondary">Config</button>
+            <% if (config) { %>
+                <button id="toggleConfig" class="btn btn-secondary">Encoders Config</button>
             <% } %>
-            <button id="refresh" class="btn btn-secondary" onClick="window.location.reload();">Refresh</button>
+
+            <% if (layout == 'advanced') { %>
+                <button id="layoutConfig" class="btn btn-secondary">Layout Editor</button>
+            <% } %>
+                
+            <% if (!inApp) { %>
+                <button id="installBtn" onclick="install()" class="btn btn-secondary d-none">Install</button>
+                <button id="refresh" class="btn btn-secondary" onClick="window.location.reload();">Refresh</button>
+            <% } %>
         </div>
+        <% if (inApp) { %>
+            <div></div>
+        <% } %>
     </nav>
-    <main class="tab-content container-fluid bg-dark p-1 overflow-auto d-flex">
-		<section class="flex-grow-1 masonry masonry-1 align-items-start align-content-start" id="views">
-			<div class="text-light selectedPlayer player-quad" id="camOne" data-type="oneCam">
-				<div class="d-flex justify-content-between">
-                    <h4 class="player-title feed-title" data-title="Choose First Camera">Choose First Camera</h4>
-                    <div class="d-flex my-auto mx-1">
-                        <button class="btn mutePlayer muted btn-close btn-close-white" type="button"></button>
-                        <button class="btn fullPlayer btn-close btn-close-white mx-2" type="button"></button>
-                        <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
-                    </div>
-                </div>
-                <div class="player-container"></div>
-            </div>
-            <div class="text-light d-none player-quad" id="camTwo" data-type="twoCam">
-                <div class="d-flex justify-content-between">
-                    <h4 class="player-title feed-title" data-title="Choose Second Camera">Choose Second Camera</h4>
-                    <div class="d-flex my-auto mx-1">
-                        <button class="btn mutePlayer muted btn-close btn-close-white" type="button"></button>
-                        <button class="btn fullPlayer btn-close btn-close-white mx-2" type="button"></button>
-                        <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
-                    </div>
-                </div>
-                <div class="player-container"></div>
-            </div>
-            <div class="text-light d-none player-quad" id="camThree" data-type="threeCam">
-                <div class="d-flex justify-content-between">
-                    <h4 class="player-title feed-title" data-title="Choose Third Camera">Choose Third Camera</h4>
-                    <div class="d-flex my-auto mx-1">
-                        <button class="btn mutePlayer muted btn-close btn-close-white" type="button"></button>
-                        <button class="btn fullPlayer btn-close btn-close-white mx-2" type="button"></button>
-                        <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
-                    </div>
-                </div>
-                <div class="player-container"></div>
-            </div>
-			<div class="text-light d-none player-quad" id="camFour" data-type="fourCam">
-                <div class="d-flex justify-content-between">
-                    <h4 class="player-title feed-title" data-title="Choose Fourth Camera">Choose Fourth Camera</h4>
-                    <div class="d-flex my-auto mx-1">
-                        <button class="btn mutePlayer muted btn-close btn-close-white" type="button"></button>
-                        <button class="btn fullPlayer btn-close btn-close-white mx-2" type="button"></button>
-                        <button class="btn closePlayer btn-close btn-close-white" type="button"></button>
-                    </div>
-                </div>
-                <div class="player-container"></div>
-            </div>
-		</section>
-		<aside id="tumbList" class="overflow-auto">
-			
-		</aside>
-    </main>
+
+    <% if (layout == 'basic') { %>
+        <%- include('layouts/basic.ejs'); %>
+    <% } else if (layout == 'advanced') { %>
+        <%- include('layouts/advanced.ejs'); %>
+        <%- include('modals/layoutEditor.ejs'); %>
+    <% } else { %>
+        <%- include('layouts/thumbnails.ejs'); %>
+    <% } %>
     
-    <article id="config" class="overflow-auto hidden pt-5">
-        <section class="bg-dark text-light alert text-nowrap flex-column d-flex mb-0 container">
-            <div class="row mt-2">
-                <h3 class="w-50">Edit Encoders</h3>
-            </div>
-
-            <div class="nav nav-pills mb-2 nav-justified" id="nav-tab" role="tablist">
-                <button class="nav-link active" id="nav-encoders-tab" data-bs-toggle="tab" data-bs-target="#nav-encoders" type="button" role="tab" aria-controls="nav-encoders" aria-selected="true">Encoders</button>
-                <button class="nav-link" id="nav-decoders-tab" data-bs-toggle="tab" data-bs-target="#nav-decoders" type="button" role="tab" aria-controls="nav-decoders" aria-selected="false">Decoders</button>
-            </div>
-
-            <section class="tab-content overflow-auto">
-                <div class="tab-pane fade show active" data-editor="encoders" role="tabpanel" id="nav-encoders">
-                    <div class="dataTable collapse show">
-                        <table class="table table-dark" data-editor="encoders">
-                            <thead class="position-sticky top-0">
-                                <tr>
-                                    <th class="">Name</th>
-                                    <th class="">ID</th>
-                                    <th class="">Type</th>
-									<th class="">URL</th>
-                                    <th class="">Encoder Details</th>
-                                    <th class=""></th>
-                                </tr>
-                            </thead>
-                            <tbody id="configEncoders" data-template="encoder"></tbody>
-                        </table>
-                    </div>
-                    <div class="dataRaw collapse mt-3 mb-2">
-                        <div id="configEncodersRaw"></div>
-                    </div>
-					<div class="input-group p-1">
-						<input type="text" class="form-control" id="homestudioKey" placeholder="Homestudio Encoder Key (only for remote SRT feeds)" value="<%-homestudioKey%>">
-						<button class="btn btn-primary" id="homestudioKeySet">Set</button>
-					</div>
-                </div>
-                <div class="tab-pane fade" data-editor="encoders" role="tabpanel" id="nav-decoders">
-                    <div class="dataTable collapse show">
-                        <table class="table table-dark" data-editor="decoders">
-                            <thead class="position-sticky top-0">
-                                <tr>
-                                    <th></th>
-                                    <th class="">Name</th>
-                                    <th class="">ID</th>
-									<th class="">URL</th>
-									<th class="">Feed</th>
-                                    <th class=""></th>
-                                </tr>
-                            </thead>
-                            <tbody id="configDecoders" data-template="decoder"></tbody>
-                        </table>
-                    </div>
-                    <div class="dataRaw collapse mt-3 mb-2">
-                        <div id="configDecodersRaw"></div>
-                    </div>
-                    <div class="mb-1 d-flex justify-content-end gap-1">
-                        <button class="btn btn-success pushAll" type="button">Start All</button>
-                        <button class="btn btn-success stopAll" type="button">Stop All</button>
-                    </div>
-                    <div>
-                        <h5>SRT Decoding message:</h5>
-                        <div id="SRTPushStatus"></div>
-                    </div>
-                </div>
-            </section>
-
-            <div class="mt-3 mx-0 align-self-end d-flex gap-1 flex-wrap">
-                <input id="csvUpload" class="form-control" type="file" accept="text/csv" name="csvUpload" size="30">
-                <button class="btn btn-primary tableImport" type="button" disabled>Import CSV</button>
-                <button class="btn btn-primary tableExport" type="button">Export as CSV</button>
-                <button class="btn btn-primary toggleTableRaw" type="button">Toggle View</button>
-                <button class="btn btn-primary tableNew" type="button">Add new</button>
-                <button class="btn btn-success tableSave" type="button">Save</button>
-                <button id="closeConfig" class="btn btn-danger">Close</button>
-                <div id="testId"></div>
-            </div>
-        </section>
-    </article>
+    <% if (config) { %>
+        <%- include('modals/config.ejs'); %>
+    <% } %>
 </body>
 
 </html>
