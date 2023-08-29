@@ -340,6 +340,8 @@ nav.drag {
   display: grid;
   aspect-ratio: 16/9;
   gap: 0.5rem;
+  max-height: 65vh;
+  margin-inline: auto;
 }
 
 #layoutGridCont[data-rows="1"] {
@@ -384,8 +386,150 @@ nav.drag {
 }
 
 .layoutPlaceholder {
+  --col-start: 0;
+  --col-end: 0;
+  --row-start: 0;
+  --row-end: 0;
   border: 1px solid #3b3f44;
   border-radius: 5px;
   box-shadow: #000 0px 0px 10px -5px;
   padding: 1rem;
+  grid-column: var(--col-start)/var(--col-end);
+  grid-row: var(--row-start)/var(--row-end);
+  position: relative;
+}
+
+.layoutDragTop {
+  position: absolute;
+  width: 100%;
+  height: 2rem;
+  margin: -1rem;
+}
+
+.layoutDragLeft {
+  position: absolute;
+  height: 100%;
+  width: 2rem;
+  margin: -1rem;
+}
+
+.layoutDragBottom {
+  position: absolute;
+  width: 100%;
+  height: 2rem;
+  margin-left: -1rem;
+  bottom: 0;
+}
+
+.layoutDragRight {
+  position: absolute;
+  height: 100%;
+  width: 2rem;
+  margin-top: -1rem;
+  right: 0;
+}
+
+
+
+.layoutPlaceholder[data-col-start="1"] {
+  --col-start: 1;
+}
+
+.layoutPlaceholder[data-col-start="2"] {
+  --col-start: 2;
+}
+
+.layoutPlaceholder[data-col-start="3"] {
+  --col-start: 3;
+}
+
+.layoutPlaceholder[data-col-start="4"] {
+  --col-start: 4;
+}
+
+.layoutPlaceholder[data-col-start="5"] {
+  --col-start: 5;
+}
+
+.layoutPlaceholder[data-col-start="6"] {
+  --col-start: 6;
+}
+
+
+
+.layoutPlaceholder[data-col-end="1"] {
+  --col-end: 2;
+}
+
+.layoutPlaceholder[data-col-end="2"] {
+  --col-end: 3;
+}
+
+.layoutPlaceholder[data-col-end="3"] {
+  --col-end: 4;
+}
+
+.layoutPlaceholder[data-col-end="4"] {
+  --col-end: 5;
+}
+
+.layoutPlaceholder[data-col-end="5"] {
+  --col-end: 6;
+}
+
+.layoutPlaceholder[data-col-end="6"] {
+  --col-end: 7;
+}
+
+
+
+
+.layoutPlaceholder[data-row-start="1"] {
+  --row-start: 1;
+}
+
+.layoutPlaceholder[data-row-start="2"] {
+  --row-start: 2;
+}
+
+.layoutPlaceholder[data-row-start="3"] {
+  --row-start: 3;
+}
+
+.layoutPlaceholder[data-row-start="4"] {
+  --row-start: 4;
+}
+
+.layoutPlaceholder[data-row-start="5"] {
+  --row-start: 5;
+}
+
+.layoutPlaceholder[data-row-start="6"] {
+  --row-start: 6;
+}
+
+
+
+.layoutPlaceholder[data-row-end="1"] {
+  --row-end: 2;
+}
+
+.layoutPlaceholder[data-row-end="2"] {
+  --row-end: 3;
+}
+
+.layoutPlaceholder[data-row-end="3"] {
+  --row-end: 4;
+}
+
+.layoutPlaceholder[data-row-end="4"] {
+  --row-end: 5;
+}
+
+.layoutPlaceholder[data-row-end="5"] {
+  --row-end: 6;
+}
+
+.layoutPlaceholder[data-row-end="6"] {
+  --row-end: 7;
 }

@@ -508,13 +508,34 @@ $(document).ready(function() {
 function drawConfigLayout() {
 	const thisLayout = layouts.filter(layout => layout.ID == activeLayout)[0];
 	const $cont = $("#layoutGridCont");
+	//const oldCols = $cont.attr("data-cols");
+	//const oldRows = $cont.attr("data-rows");
 	$cont.attr("data-cols", thisLayout.Columns);
 	$cont.attr("data-rows", thisLayout.Rows);
 	$('#layoutCols').val(thisLayout.Columns);
 	$('#layoutRows').val(thisLayout.Rows);
+
+	//if (oldRows < )
+
 	$cont.html('');
-	for (let pip = 1; pip < (thisLayout.Columns * thisLayout.Rows)+1; pip++) {
-		$cont.append(`<div class="layoutPlaceholder" data-pip="${pip}">${pip}</div>`);
+
+	let pip = 1;
+	for (let x = 1; x < (thisLayout.Rows)+1; x++) {
+		for (let y = 1; y < (thisLayout.Columns)+1; y++) {
+			$cont.append(`<div class="layoutPlaceholder"
+			data-pip="${pip}"
+			data-row-start="${x}"
+			data-row-end="${x}"
+			data-col-start="${y}"
+			data-col-end="${y}"
+			>
+				<div class="layoutDragTop"></div>
+				<div class="layoutDragLeft"></div>
+				<div class="layoutDragBottom"></div>
+				<div class="layoutDragRight"></div>
+			</div>`);
+			pip++;
+		}
 	}
 };
 
@@ -835,4 +856,51 @@ function errorHandler(event) {
 
 function install() {
   if (beforeInstallPrompt) beforeInstallPrompt.prompt();
+}
+
+
+
+
+
+
+
+
+
+
+
+function getGridPosition(elem) {
+    var gridContainer = elem.parent();
+    var simpleEl = elem.get(0);
+    var gridItems = gridContainer.children('div');
+    const colCount = $(gridContainer).css('grid-template-columns').split(' ').length;
+
+    var row = 0;
+    var col = 0;
+
+    gridItems.each(function(index,el) {
+
+        var item = $(el);
+        if(simpleEl==el) {
+            //console.log("FOUND!")
+            return false;
+        }
+        var gridCols = item.css("grid-column");
+        if (gridCols != undefined && gridCols.indexOf("span") >=0 ) {
+            var gridColumnParts = gridCols.split('/');
+            var spanValue = parseInt(gridColumnParts[0].trim().split(' ')[1], 10);
+            //console.log("spanValue: " + spanValue);
+            col = col+spanValue;
+        } else {
+            col++;
+        }
+        if (col>=colCount) {
+            col=0;
+            row++;
+        }
+    });
+
+    return {
+        row: row,
+        col: col
+    };
 }
