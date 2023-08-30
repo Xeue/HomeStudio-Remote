@@ -421,7 +421,7 @@ $(document).ready(function() {
 
 	setInterval(() => {
 		for (thumb of document.getElementsByClassName('thumbnail')) {
-			//thumb.src = thumb.dataset.src + "?" + new Date().getTime();
+			thumb.src = thumb.dataset.src + "?" + new Date().getTime();
 		}
 	}, 1000)
 });
