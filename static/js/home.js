@@ -490,12 +490,150 @@ $(document).ready(function() {
 		} else if ($trg.is('#layoutCols')) {
 			const cols = Number($trg.val());
 			layouts.filter(layout => layout.ID == activeLayout)[0].Columns = cols;
-			drawConfigLayout();
+			updateConfigLayout();
 		} else if ($trg.is('#layoutRows')) {
 			const rows = Number($trg.val());
 			layouts.filter(layout => layout.ID == activeLayout)[0].Rows = rows;
-			drawConfigLayout();
+			updateConfigLayout();
 		}
+	});
+
+	$(document).mousedown(function(e) {
+		const $trg = $(e.target);
+		if ($trg.hasClass('layoutDragRight')
+			|| $trg.hasClass('layoutDragTop')
+			|| $trg.hasClass('layoutDragLeft')
+			|| $trg.hasClass('layoutDragBottom')
+		) {
+			e.preventDefault;
+			$trg.parent().addClass('resizing');
+			$trg.addClass('resizingDir');
+		}
+	});
+
+
+	$(document).mouseup(function(e) {
+		const $resizing = $('.resizing');
+		const $resizingDir = $('.resizingDir');
+		if ($resizing.length < 1) return;
+		$resizing.removeClass('resizing');
+		$resizingDir.removeClass('resizingDir');
+
+		const $cont = $('#layoutGridCont');
+		const left = $cont.offset().left;
+		const width = $cont.width();
+		const cols = Number($cont.attr('data-cols'));
+		const newCol = Math.ceil((cols * (e.pageX - left))/width);
+
+		const top = $cont.offset().top;
+		const height = $cont.height();
+		const rows = Number($cont.attr('data-rows'));
+		const newRow = Math.ceil((rows * (e.pageY - top))/height);
+		
+		if (newCol > cols || newRow > rows || newCol < 1 || newRow < 1) return;
+
+		let fromX;
+		let toX;
+		let fromY;
+		let toY;
+		let newX;
+		let newY;
+		const oldColEnd = Number($resizing.attr('data-col-end'));
+		const oldColStart = Number($resizing.attr('data-col-start'));
+		const oldRowEnd = Number($resizing.attr('data-row-end'));
+		const oldRowStart = Number($resizing.attr('data-row-start'));
+		if (newCol > oldColEnd) {
+			$resizing.attr('data-col-end', newCol);
+			fromX = oldColStart;
+			toX = newCol;
+			newX = false;
+		} else if (newCol < oldColStart) {
+			$resizing.attr('data-col-start', newCol);
+			fromX = newCol;
+			toX = oldColEnd;
+			newX = false;
+		} else if ($resizingDir.hasClass('layoutDragRight')) {
+			fromX = newCol;
+			toX = oldColEnd;
+			$resizing.attr('data-col-end', newCol);
+			newX = true;
+		} else if ($resizingDir.hasClass('layoutDragLeft')) {
+			fromX = oldColStart;
+			toX = newCol;
+			$resizing.attr('data-col-start', newCol);
+			newX = true;
+		}
+
+		if (newRow > oldRowEnd) {
+			$resizing.attr('data-row-end', newRow);
+			fromY = oldRowStart;
+			toY = newRow;
+			newX = false;
+		} else if (newRow < oldRowStart) {
+			$resizing.attr('data-row-start', newRow);
+			fromY = newRow;
+			toY = oldRowEnd;
+			newX = false;
+		} else if ($resizingDir.hasClass('layoutDragBottom')) {
+			fromY = newRow;
+			toY = oldRowEnd;
+			$resizing.attr('data-row-end', newRow);
+			newX = true;
+		} else if ($resizingDir.hasClass('layoutDragTop')) {
+			fromY = oldRowStart;
+			toY = newRow;
+			$resizing.attr('data-row-start', newRow);
+			newX = true;
+		}
+
+		if (newX) {
+			for (let r = fromX; r < toX+1; r++) {
+				for (let c = oldRowStart; c < oldRowEnd+1; c++) {
+					$cont.append(`<div class="layoutPlaceholder"
+					data-pip="100"
+					data-row-start="${r}"
+					data-row-end="${r}"
+					data-col-start="${c}"
+					data-col-end="${c}"
+					>
+						<div class="layoutDragTop"></div>
+						<div class="layoutDragLeft"></div>
+						<div class="layoutDragBottom"></div>
+						<div class="layoutDragRight"></div>
+					</div>`);
+				}
+			}
+		} else {
+
+		}
+
+		if (newY) {
+			for (let r = oldColStart; r < oldColEnd+1; r++) {
+				for (let c = fromY; c < toY+1; c++) {
+					$cont.append(`<div class="layoutPlaceholder"
+					data-pip="100"
+					data-row-start="${r}"
+					data-row-end="${r}"
+					data-col-start="${c}"
+					data-col-end="${c}"
+					>
+						<div class="layoutDragTop"></div>
+						<div class="layoutDragLeft"></div>
+						<div class="layoutDragBottom"></div>
+						<div class="layoutDragRight"></div>
+					</div>`);
+				}
+			}
+		} else {
+			for (let c = fromY; c < toY+1; c++) {
+				$cont.each(function(i, pip) {
+					Number($(pip).attr('data-row-start'))
+				});
+			}
+		}
+
+		renumberPips();
+
 	});
 
 	setInterval(() => {
@@ -505,29 +643,59 @@ $(document).ready(function() {
 	}, 1000)
 });
 
+function pipSplit(pip) {
+	const $pip = $(pip);
+	const colEnd = Number($pip.attr('data-col-end'));
+	const colStart = Number($pip.attr('data-col-start'));
+	const rowEnd = Number($pip.attr('data-row-end'));
+	const rowStart = Number($pip.attr('data-row-start'));
+	for (let r = rowStart; r < rowEnd+1; r++) {
+		for (let c = colStart; c < colEnd+1; c++) {
+			$('#layoutGridCont').append(`<div class="layoutPlaceholder"
+			data-pip="100"
+			data-row-start="${r}"
+			data-row-end="${r}"
+			data-col-start="${c}"
+			data-col-end="${c}"
+			>
+				<div class="layoutDragTop"></div>
+				<div class="layoutDragLeft"></div>
+				<div class="layoutDragBottom"></div>
+				<div class="layoutDragRight"></div>
+			</div>`);
+		}
+	}
+	$pip.remove();
+	renumberPips();
+}
+
+function renumberPips() {
+	$('#layoutGridCont').children().each(function(i, pip) {
+		$(pip).attr('data-pip', i+1);
+	})
+}
+
 function drawConfigLayout() {
 	const thisLayout = layouts.filter(layout => layout.ID == activeLayout)[0];
 	const $cont = $("#layoutGridCont");
-	//const oldCols = $cont.attr("data-cols");
-	//const oldRows = $cont.attr("data-rows");
+	const oldCols = $cont.attr("data-cols");
+	const oldRows = $cont.attr("data-rows");
 	$cont.attr("data-cols", thisLayout.Columns);
 	$cont.attr("data-rows", thisLayout.Rows);
 	$('#layoutCols').val(thisLayout.Columns);
 	$('#layoutRows').val(thisLayout.Rows);
 
-	//if (oldRows < )
-
 	$cont.html('');
 
 	let pip = 1;
-	for (let x = 1; x < (thisLayout.Rows)+1; x++) {
-		for (let y = 1; y < (thisLayout.Columns)+1; y++) {
+	for (let r = 1; r < (thisLayout.Rows)+1; r++) {
+		for (let c = 1; c < (thisLayout.Columns)+1; c++) {
 			$cont.append(`<div class="layoutPlaceholder"
 			data-pip="${pip}"
-			data-row-start="${x}"
-			data-row-end="${x}"
-			data-col-start="${y}"
-			data-col-end="${y}"
+			data-row-start="${r}"
+			data-row-end="${r}"
+			data-col-start="${c}"
+			data-col-end="${c}"
 			>
 				<div class="layoutDragTop"></div>
 				<div class="layoutDragLeft"></div>
@@ -537,6 +705,85 @@ function drawConfigLayout() {
 			pip++;
 		}
 	}
+};
+
+function updateConfigLayout() {
+	const thisLayout = layouts.filter(layout => layout.ID == activeLayout)[0];
+	const $cont = $("#layoutGridCont");
+	const oldCols = Number($cont.attr("data-cols"));
+	const oldRows = Number($cont.attr("data-rows"));
+	$cont.attr("data-cols", thisLayout.Columns);
+	$cont.attr("data-rows", thisLayout.Rows);
+	$('#layoutCols').val(thisLayout.Columns);
+	$('#layoutRows').val(thisLayout.Rows);
+
+	let pip = $cont.children().length + 1;
+
+	if (oldRows < thisLayout.Rows) {
+		for (let r = oldRows; r < thisLayout.Rows; r++) {
+			for (let c = 1; c < (thisLayout.Columns)+1; c++) {
+				$cont.append(`<div class="layoutPlaceholder"
+				data-pip="${pip}"
+				data-row-start="${r+1}"
+				data-row-end="${r+1}"
+				data-col-start="${c}"
+				data-col-end="${c}"
+				>
+					<div class="layoutDragTop"></div>
+					<div class="layoutDragLeft"></div>
+					<div class="layoutDragBottom"></div>
+					<div class="layoutDragRight"></div>
+				</div>`);
+				pip++;
+			}
+		}
+	} else if (oldRows > thisLayout.Rows) {
+		for (let index = thisLayout.Rows+1; index < oldRows+1; index++) {
+			const $pips = $(`[data-row-end="${index}"]`);
+			$pips.each(function(i, pip) {
+				$pip = $(pip);
+				if (Number($pip.attr('data-row-start')) >= thisLayout.Rows) {
+					$pip.remove();
+				} else {
+					$pip.attr('data-row-start', thisLayout.Rows);
+				}
+			});
+		}
+	}
+
+	if (oldCols < thisLayout.Columns) {
+		for (let r = 1; r < (thisLayout.Rows)+1; r++) {
+			for (let c = oldCols; c < thisLayout.Columns; c++) {
+				$cont.append(`<div class="layoutPlaceholder"
+				data-pip="${pip}"
+				data-row-start="${r}"
+				data-row-end="${r}"
+				data-col-start="${c+1}"
+				data-col-end="${c+1}"
+				>
+					<div class="layoutDragTop"></div>
+					<div class="layoutDragLeft"></div>
+					<div class="layoutDragBottom"></div>
+					<div class="layoutDragRight"></div>
+				</div>`);
+				pip++;
+			}
+		}
+	} else if (oldCols > thisLayout.Columns) {
+		for (let index = thisLayout.Columns+1; index < oldCols+1; index++) {
+			const $pips = $(`[data-col-end="${index}"]`);
+			$pips.each(function(i, pip) {
+				$pip = $(pip);
+				if (Number($pip.attr('data-col-start')) >= thisLayout.Columns) {
+					$pip.remove();
+				} else {
+					$pip.attr('data-col-start', thisLayout.Columns);
+				}
+			});
+		}
+	}
+
+	renumberPips();
 };
 
 function choseWindows(number) {
@@ -877,7 +1124,7 @@ function getGridPosition(elem) {
     var row = 0;
     var col = 0;
 
-    gridItems.each(function(index,el) {
+    gridItems.each(function(index, el) {
 
         var item = $(el);
         if(simpleEl==el) {

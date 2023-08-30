@@ -104,59 +104,6 @@ nav.drag {
   margin-bottom: 0 !important;
 }
 
-#syslogHistogram {
-  visibility: hidden;
-  height: 0vh !important;
-}
-
-#syslogHistogramToggle::after {
-  content: "Show Histogram";
-}
-
-.showHistogram table[data-catagory="syslog"] {
-  display: none;
-  top: 100vh;
-}
-
-.showHistogram #syslogHistogram {
-  visibility: visible;
-  height: 60vh !important;
-}
-
-.showHistogram #syslogHistogramToggle::after {
-  content: "Show Logs";
-}
-
-.pie {
-  --w: 50px;
-  width: var(--w);
-  aspect-ratio: 1;
-  position: relative;
-  display: inline-grid;
-  place-content: center;
-  margin: 5px;
-  text-align: right;
-  line-height: 1.1;
-}
-.pie:before {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
-  inset: 0;
-  background: conic-gradient(var(--c) calc(var(--p)*1%),#0000 0);
-  -webkit-mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
-          mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
-}
-.pie:after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
-  inset: 10px;
-  background: conic-gradient(var(--ci) calc(var(--pi)*1%),#0000 0);
-  -webkit-mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
-          mask: radial-gradient(farthest-side,#0000 calc(99% - var(--b)),#000 calc(100% - var(--b)));
-}
-
 .sourceSelect {
   cursor: pointer;
   overflow: hidden;
@@ -344,46 +291,19 @@ nav.drag {
   margin-inline: auto;
 }
 
-#layoutGridCont[data-rows="1"] {
-  grid-template-rows: repeat(1, 1fr);
-}
+#layoutGridCont[data-rows="1"] {grid-template-rows: repeat(1, 1fr);}
+#layoutGridCont[data-rows="2"] {grid-template-rows: repeat(2, 1fr);}
+#layoutGridCont[data-rows="3"] {grid-template-rows: repeat(3, 1fr);}
+#layoutGridCont[data-rows="4"] {grid-template-rows: repeat(4, 1fr);}
+#layoutGridCont[data-rows="5"] {grid-template-rows: repeat(5, 1fr);}
+#layoutGridCont[data-rows="6"] {grid-template-rows: repeat(6, 1fr);}
 
-#layoutGridCont[data-rows="2"] {
-  grid-template-rows: repeat(2, 1fr);
-}
-
-#layoutGridCont[data-rows="3"] {
-  grid-template-rows: repeat(3, 1fr);
-}
-
-#layoutGridCont[data-rows="4"] {
-  grid-template-rows: repeat(4, 1fr);
-}
-
-
-#layoutGridCont[data-cols="1"] {
-  grid-template-columns: repeat(1, 1fr);
-}
-
-#layoutGridCont[data-cols="2"] {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-#layoutGridCont[data-cols="3"] {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-#layoutGridCont[data-cols="4"] {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-#layoutGridCont[data-cols="5"] {
-  grid-template-columns: repeat(5, 1fr);
-}
-
-#layoutGridCont[data-cols="6"] {
-  grid-template-columns: repeat(6, 1fr);
-}
+#layoutGridCont[data-cols="1"] {grid-template-columns: repeat(1, 1fr);}
+#layoutGridCont[data-cols="2"] {grid-template-columns: repeat(2, 1fr);}
+#layoutGridCont[data-cols="3"] {grid-template-columns: repeat(3, 1fr);}
+#layoutGridCont[data-cols="4"] {grid-template-columns: repeat(4, 1fr);}
+#layoutGridCont[data-cols="5"] {grid-template-columns: repeat(5, 1fr);}
+#layoutGridCont[data-cols="6"] {grid-template-columns: repeat(6, 1fr);}
 
 .layoutPlaceholder {
   --col-start: 0;
@@ -397,139 +317,80 @@ nav.drag {
   grid-column: var(--col-start)/var(--col-end);
   grid-row: var(--row-start)/var(--row-end);
   position: relative;
+  overflow: hidden;
 }
 
 .layoutDragTop {
-  position: absolute;
   width: 100%;
-  height: 2rem;
+  height: var(--width);
   margin: -1rem;
 }
 
 .layoutDragLeft {
-  position: absolute;
   height: 100%;
-  width: 2rem;
+  width: var(--width);
   margin: -1rem;
 }
 
 .layoutDragBottom {
-  position: absolute;
   width: 100%;
-  height: 2rem;
+  height: var(--width);
   margin-left: -1rem;
   bottom: 0;
 }
 
 .layoutDragRight {
-  position: absolute;
   height: 100%;
-  width: 2rem;
+  width: var(--width);
   margin-top: -1rem;
   right: 0;
 }
 
-
-
-.layoutPlaceholder[data-col-start="1"] {
-  --col-start: 1;
+.layoutDragTop,
+.layoutDragLeft,
+.layoutDragBottom,
+.layoutDragRight {
+  position: absolute;
+  border-radius: 3px;
+  --width: 0.75rem;
 }
 
-.layoutPlaceholder[data-col-start="2"] {
-  --col-start: 2;
+.layoutDragTop:hover,
+.layoutDragBottom:hover {
+  background: rgba(0, 149, 255, 0.438);
+  cursor: row-resize;
 }
 
-.layoutPlaceholder[data-col-start="3"] {
-  --col-start: 3;
+.layoutDragLeft:hover,
+.layoutDragRight:hover {
+  background: rgba(0, 149, 255, 0.438);
+  cursor: col-resize;
 }
 
-.layoutPlaceholder[data-col-start="4"] {
-  --col-start: 4;
-}
+.layoutPlaceholder[data-col-start="1"] {--col-start: 1;}
+.layoutPlaceholder[data-col-start="2"] {--col-start: 2;}
+.layoutPlaceholder[data-col-start="3"] {--col-start: 3;}
+.layoutPlaceholder[data-col-start="4"] {--col-start: 4;}
+.layoutPlaceholder[data-col-start="5"] {--col-start: 5;}
+.layoutPlaceholder[data-col-start="6"] {--col-start: 6;}
 
-.layoutPlaceholder[data-col-start="5"] {
-  --col-start: 5;
-}
+.layoutPlaceholder[data-col-end="1"] {--col-end: 2;}
+.layoutPlaceholder[data-col-end="2"] {--col-end: 3;}
+.layoutPlaceholder[data-col-end="3"] {--col-end: 4;}
+.layoutPlaceholder[data-col-end="4"] {--col-end: 5;}
+.layoutPlaceholder[data-col-end="5"] {--col-end: 6;}
+.layoutPlaceholder[data-col-end="6"] {--col-end: 7;}
 
-.layoutPlaceholder[data-col-start="6"] {
-  --col-start: 6;
-}
+.layoutPlaceholder[data-row-start="1"] {--row-start: 1;}
+.layoutPlaceholder[data-row-start="2"] {--row-start: 2;}
+.layoutPlaceholder[data-row-start="3"] {--row-start: 3;}
+.layoutPlaceholder[data-row-start="4"] {--row-start: 4;}
+.layoutPlaceholder[data-row-start="5"] {--row-start: 5;}
+.layoutPlaceholder[data-row-start="6"] {--row-start: 6;}
 
-
-
-.layoutPlaceholder[data-col-end="1"] {
-  --col-end: 2;
-}
-
-.layoutPlaceholder[data-col-end="2"] {
-  --col-end: 3;
-}
-
-.layoutPlaceholder[data-col-end="3"] {
-  --col-end: 4;
-}
-
-.layoutPlaceholder[data-col-end="4"] {
-  --col-end: 5;
-}
-
-.layoutPlaceholder[data-col-end="5"] {
-  --col-end: 6;
-}
-
-.layoutPlaceholder[data-col-end="6"] {
-  --col-end: 7;
-}
-
-
-
-
-.layoutPlaceholder[data-row-start="1"] {
-  --row-start: 1;
-}
-
-.layoutPlaceholder[data-row-start="2"] {
-  --row-start: 2;
-}
-
-.layoutPlaceholder[data-row-start="3"] {
-  --row-start: 3;
-}
-
-.layoutPlaceholder[data-row-start="4"] {
-  --row-start: 4;
-}
-
-.layoutPlaceholder[data-row-start="5"] {
-  --row-start: 5;
-}
-
-.layoutPlaceholder[data-row-start="6"] {
-  --row-start: 6;
-}
-
-
-
-.layoutPlaceholder[data-row-end="1"] {
-  --row-end: 2;
-}
-
-.layoutPlaceholder[data-row-end="2"] {
-  --row-end: 3;
-}
-
-.layoutPlaceholder[data-row-end="3"] {
-  --row-end: 4;
-}
-
-.layoutPlaceholder[data-row-end="4"] {
-  --row-end: 5;
-}
-
-.layoutPlaceholder[data-row-end="5"] {
-  --row-end: 6;
-}
-
-.layoutPlaceholder[data-row-end="6"] {
-  --row-end: 7;
-}
+.layoutPlaceholder[data-row-end="1"] {--row-end: 2;}
+.layoutPlaceholder[data-row-end="2"] {--row-end: 3;}
+.layoutPlaceholder[data-row-end="3"] {--row-end: 4;}
+.layoutPlaceholder[data-row-end="4"] {--row-end: 5;}
+.layoutPlaceholder[data-row-end="5"] {--row-end: 6;}
+.layoutPlaceholder[data-row-end="6"] {--row-end: 7;}
