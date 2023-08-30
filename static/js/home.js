@@ -10,7 +10,7 @@ let mapping = [
 	0,
 	0
 ];
-let activeLayout = 0;
+let activeLayout = 1;
 
 templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
@@ -46,7 +46,7 @@ templates.decoder = `<% for(i = 0; i < devices.length; i++) { %>
 		<button type="button" class="btn btn-danger deleteRow flex-grow-1">Delete</button>
 	  </td>
 	</tr>
-  <% } %>`;
+<% } %>`;
 
 function socketDoOpen(socket) {
 	console.log('Registering as client');
@@ -117,6 +117,9 @@ function socketDoMessage(header, payload) {
 			$(`.sourceSelect[data-id="${feed.ID}"]`).data('name', feed.Name);
 		});
 		break;
+	case 'layouts':
+		layouts = payload.layouts;
+		break;
 	default:
 		console.log('Unknown WS message');
 		console.log(payload);
@@ -170,12 +173,10 @@ $(document).ready(function() {
 		} else if ($trg.is('#layoutConfig')) {
 			if ($('#layout').hasClass('hidden')) {
 				loading(true);
-				Promise.allSettled([
-					getConfig('layouts')
-				]).then(values => {
-					const [layouts] = values;
+				getConfig('layouts').then(values => {
+					layouts = values;
 					loading(false);
-					console.log(layouts);
+					drawAdvancedLayoutSelect();
 					$('#layout').removeClass('hidden');
 				}).catch(error => {
 					console.error(error);
@@ -185,6 +186,10 @@ $(document).ready(function() {
 			}
 		} else if ($trg.is('#closeConfig')) {
 			$('.popup').addClass('hidden');
+		} else if ($trg.is('#fullscreen')) {
+			$('body').toggleClass('fullscreen');
+			const body = document.getElementsByTagName("body")[0];
+			body.requestFullscreen();
 		} else if ($trg.hasClass('tableExport')) {
 			const $table = $('.tab-pane.active table[data-editor]');
 			const editor = $table.data('editor');
@@ -222,181 +227,15 @@ $(document).ready(function() {
 			$active.find('.dataTable').collapse('toggle');
 			$active.find('.dataRaw').collapse('toggle');
 		} else if ($trg.hasClass('editConfig')) {
-			let $row = $trg.closest('tr');
-			$row.children().each(function() {
-				let $td = $(this);
-				switch ($td.data('type')) {
-				case 'text': {
-					let $txt = $(`<input type="text" class="form-control" value="${$td.data('value')}" name="${$td.data('key')}"></input>`);
-					$txt.change(function() {
-						$td.data('value', $txt.val());
-					});
-					$td.html('');
-					$td.append($txt);
-					break;
-				}
-				case 'range': {
-					let $from = $(`<input type="text" class="editRange form-control text-end" value="${$td.data('from')}" name="${$td.data('key-from')}"></input>`);
-					let $to = $(`<input type="text" class="editRange form-control" value="${$td.data('to')}" name="${$td.data('key-to')}"></input>`);
-					$from.change(function() {
-						$td.data('from', $from.val());
-					});
-					$to.change(function() {
-						$td.data('to', $to.val());
-					});
-					$td.html('');
-					$td.addClass('input-group');
-					$td.append($from);
-					$td.append('<span class="input-group-text">to</span>');
-					$td.append($to);
-					break;
-				}
-				case 'select': {
-					let txt = `<select class="btn btn-outline-light" name="${$td.data('key')}">`;
-					if ($td.data('options')) {
-						const options = $td.data('options').split(',');
-						options.forEach(option => {
-							const selected = option == $td.data('value') ? 'selected' : '';
-							txt += `<option value="${option}" ${selected}>${option}</option>`;
-						});
-					} else {
-						const variable = $td.data('variable');
-						window[variable].forEach(data => {
-							console.log(data);
-							const selected = 'feed'+data.ID == $td.data('value') ? 'selected' : '';
-							txt += `<option value="feed${data.ID}" ${selected}>${data.Name}</option>`;
-						});
-					}
-					txt += '</select>';
-					const $txt = $(txt);
-					$txt.change(function() {
-						$td.data('value', $txt.val());
-					});
-					$td.html('');
-					$td.append($txt);
-					break;
-				}
-				case 'readonly': {
-					break;
-				}
-				default:
-					break;
-				}
-				$trg.html('Done');
-				$trg.removeClass('editConfig');
-				$trg.removeClass('btn-danger');
-				$trg.addClass('doneConfig');
-				$trg.addClass('btn-success');
-			});
+			configRowEdit($trg);
 		} else if ($trg.hasClass('doneConfig')) {
-			let $row = $trg.closest('tr');
-			let data = {};
-			$row.children().each(function() {
-				let $td = $(this);
-				let value = $td.data('value');
-				switch ($td.data('type')) {
-				case 'text':
-					$td.html(value);
-					data[$td.data('key')] = value;
-					break;
-				case 'range':
-					$td.html(`${$td.data('from')} to ${$td.data('to')}`);
-					data[$td.data('key-from')] = parseInt($td.data('from'));
-					data[$td.data('key-to')] = parseInt($td.data('to'));
-					$td.removeClass('input-group');
-					break;
-				case 'select':
-					if (value == "") value = $td.children()[0].value
-					$td.html(value);
-					data[$td.data('key')] = value;
-					break;
-				case 'readonly':
-					data[$td.data('key')] = value;
-				default:
-					break;
-				}
-				$trg.html('Edit');
-				$trg.addClass('editConfig');
-				$trg.addClass('btn-danger');
-				$trg.removeClass('doneConfig');
-				$trg.removeClass('btn-success');
-			});
-			let editor = $row.closest('table').data('editor');
-			let current = editors[editor].get();
-			current[$row.data('index')] = data;
-			editors[editor].set(current);
-			editors[editor].expandAll();
+			configRowDone($trg);
 		} else if ($trg.hasClass('tableNew')) {
-			const $tbody = $('.tab-pane.active table[data-editor]').find('tbody');
-			const $rows = $tbody.children();
-			let newID = 0;
-			const IDs = [];
-			$rows.each(function(){
-				const row = $(this);
-				newID = row.data('id') > newID ? row.data('id') : newID;
-				IDs.push(row.data('id'));
-			});
-			newID++;
-			for (let index = 1; index < newID; index++) {
-				if (IDs.includes(index)) continue;
-				newID = index;
-				break;
-			}
-			const index = $rows.length;
-			const template = $tbody.data('template');
-			const dummyData = [];
-			dummyData[0] = {};
-			switch (template) {
-			case 'encoder':
-				dummyData[0].Name = `Camera ${newID}`;
-				dummyData[0].ID = newID;
-				dummyData[0].Type = 'Select';
-				dummyData[0].URL = '';
-				break;
-			case 'decoder':
-				dummyData[0].Name = `Decoder ${newID}`;
-				dummyData[0].ID = newID;
-				dummyData[0].Feed = 'Select';
-				dummyData[0].URL = '';
-				break;
-			default:
-				break;
-			}
-			const $new = $(ejs.render(templates[template], {'devices': dummyData}));
-			$new.attr('data-index', index);
-			$new.attr('data-id', newID);
-			$tbody.append($new);
-			$new.find('.editConfig').trigger('click');
+			configRowAdd();
 		} else if ($trg.hasClass('tableSave')) {
-			let promises = [];
-			for (const editor in editors) {
-				if (Object.hasOwnProperty.call(editors, editor)) {
-					promises.push($.ajax(`${server}set${editor}`, {
-						data : JSON.stringify(editors[editor].get()),
-						contentType : 'application/json',
-						type : 'POST'}
-					));
-				}
-			}
-			encoders = editors['encoders'].get();
-			decoders = editors['decoders'].get();
-			renderStreams();
-			Promise.allSettled(promises).then(() => {
-				alert('Saved');
-			});
+			configSave();
 		} else if ($trg.hasClass('deleteRow')) {
-			const $row = $trg.closest('tr');
-			const $tbody = $trg.closest('tbody');
-			const editor = $row.closest('table').data('editor');
-			let current = editors[editor].get();
-			current.splice($row.data('index'), 1);
-			editors[editor].set(current);
-			editors[editor].expandAll();
-			$row.remove();
-			
-			$tbody.children().each(function(index) {
-				$(this).attr('data-index', index);
-			});
+			configRowDelete($trg);
 		} else if ($trg.is('#homestudioKeySet')) {
 			localConnection.send({
 				"command":"setKey",
@@ -412,6 +251,9 @@ $(document).ready(function() {
 			choseWindows(3);
 		} else if ($trg.is('#nav-four-tab')) {
 			choseWindows(4);
+		} else if ($trg.hasClass('layout-btn')) {
+			activeLayout = Number($trg.attr('data-id'));
+			buildLayoutAdvanced();
 		} else if ($trg.hasClass('closePlayer')) {
 			closePlayer($trg.closest('.player-quad').find('.player-container').children().first());
 			$('.selectedPlayer').removeClass('selectedPlayer');
@@ -453,11 +295,52 @@ $(document).ready(function() {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 			$trg.closest('.player-quad').addClass('selectedPlayer');
 		} else if ($trg.hasClass('layoutSave')) {
-
-		} else if ($trg.hasClass('addPip')) {
-			
+			layoutSave();
 		} else if ($trg.hasClass('addLayout')) {
-			
+			const newID = layouts.length+1;
+			layouts.push({
+				"Name": "New Layout",
+				"ID": newID,
+				"Columns": 2,
+				"Rows": 2,
+				"Pips": {
+				  "1": {
+					"rowStart": 1,
+					"rowEnd": 1,
+					"colStart": 1,
+					"colEnd": 1
+				  },
+				  "2": {
+					"rowStart": 2,
+					"rowEnd": 2,
+					"colStart": 1,
+					"colEnd": 1
+				  },
+				  "3": {
+					"rowStart": 1,
+					"rowEnd": 1,
+					"colStart": 2,
+					"colEnd": 2
+				  },
+				  "4": {
+					"rowStart": 2,
+					"rowEnd": 2,
+					"colStart": 2,
+					"colEnd": 2
+				  }
+				},
+				"Mapping": {}
+			});
+			activeLayout = newID;
+			drawAdvancedLayoutSelect();
+		} else if ($trg.hasClass('renameLayout')) {
+			const $btn = $('.layoutConfigSelect.active');
+			const text = $btn.html();
+			$btn.html(`<form class="renameForm" action="#">
+				<input class="renameLayoutInput" value="${text}"/>
+				<input type="submit" style="display:none" value="">
+			</form>`)
+			$('.renameLayoutInput').focus();
 		} else if ($trg.hasClass('layoutConfigSelect')) {
 			const layoutID = $trg.data('id');
 			activeLayout = layoutID;
@@ -489,12 +372,16 @@ $(document).ready(function() {
 			}
 		} else if ($trg.is('#layoutCols')) {
 			const cols = Number($trg.val());
-			layouts.filter(layout => layout.ID == activeLayout)[0].Columns = cols;
+			//const oldCols = getActiveLayout().Columns;
+			getActiveLayout().Columns = cols;
 			updateConfigLayout();
+			//getActiveLayout().Columns = oldCols;
 		} else if ($trg.is('#layoutRows')) {
 			const rows = Number($trg.val());
-			layouts.filter(layout => layout.ID == activeLayout)[0].Rows = rows;
+			//const oldRows = getActiveLayout().Rows;
+			getActiveLayout().Rows = rows;
 			updateConfigLayout();
+			//getActiveLayout().Rows = oldRows;
 		}
 	});
 
@@ -511,137 +398,440 @@ $(document).ready(function() {
 		}
 	});
 
-
 	$(document).mouseup(function(e) {
-		const $resizing = $('.resizing');
-		const $resizingDir = $('.resizingDir');
-		if ($resizing.length < 1) return;
-		$resizing.removeClass('resizing');
-		$resizingDir.removeClass('resizingDir');
-
-		const $cont = $('#layoutGridCont');
-		const left = $cont.offset().left;
-		const width = $cont.width();
-		const cols = Number($cont.attr('data-cols'));
-		const newCol = Math.ceil((cols * (e.pageX - left))/width);
-
-		const top = $cont.offset().top;
-		const height = $cont.height();
-		const rows = Number($cont.attr('data-rows'));
-		const newRow = Math.ceil((rows * (e.pageY - top))/height);
-		
-		if (newCol > cols || newRow > rows || newCol < 1 || newRow < 1) return;
-
-		let fromX;
-		let toX;
-		let fromY;
-		let toY;
-		let newX;
-		let newY;
-		const oldColEnd = Number($resizing.attr('data-col-end'));
-		const oldColStart = Number($resizing.attr('data-col-start'));
-		const oldRowEnd = Number($resizing.attr('data-row-end'));
-		const oldRowStart = Number($resizing.attr('data-row-start'));
-		if (newCol > oldColEnd) {
-			$resizing.attr('data-col-end', newCol);
-			fromX = oldColStart;
-			toX = newCol;
-			newX = false;
-		} else if (newCol < oldColStart) {
-			$resizing.attr('data-col-start', newCol);
-			fromX = newCol;
-			toX = oldColEnd;
-			newX = false;
-		} else if ($resizingDir.hasClass('layoutDragRight')) {
-			fromX = newCol;
-			toX = oldColEnd;
-			$resizing.attr('data-col-end', newCol);
-			newX = true;
-		} else if ($resizingDir.hasClass('layoutDragLeft')) {
-			fromX = oldColStart;
-			toX = newCol;
-			$resizing.attr('data-col-start', newCol);
-			newX = true;
-		}
-
-		if (newRow > oldRowEnd) {
-			$resizing.attr('data-row-end', newRow);
-			fromY = oldRowStart;
-			toY = newRow;
-			newX = false;
-		} else if (newRow < oldRowStart) {
-			$resizing.attr('data-row-start', newRow);
-			fromY = newRow;
-			toY = oldRowEnd;
-			newX = false;
-		} else if ($resizingDir.hasClass('layoutDragBottom')) {
-			fromY = newRow;
-			toY = oldRowEnd;
-			$resizing.attr('data-row-end', newRow);
-			newX = true;
-		} else if ($resizingDir.hasClass('layoutDragTop')) {
-			fromY = oldRowStart;
-			toY = newRow;
-			$resizing.attr('data-row-start', newRow);
-			newX = true;
-		}
-
-		if (newX) {
-			for (let r = fromX; r < toX+1; r++) {
-				for (let c = oldRowStart; c < oldRowEnd+1; c++) {
-					$cont.append(`<div class="layoutPlaceholder"
-					data-pip="100"
-					data-row-start="${r}"
-					data-row-end="${r}"
-					data-col-start="${c}"
-					data-col-end="${c}"
-					>
-						<div class="layoutDragTop"></div>
-						<div class="layoutDragLeft"></div>
-						<div class="layoutDragBottom"></div>
-						<div class="layoutDragRight"></div>
-					</div>`);
-				}
-			}
-		} else {
-
-		}
-
-		if (newY) {
-			for (let r = oldColStart; r < oldColEnd+1; r++) {
-				for (let c = fromY; c < toY+1; c++) {
-					$cont.append(`<div class="layoutPlaceholder"
-					data-pip="100"
-					data-row-start="${r}"
-					data-row-end="${r}"
-					data-col-start="${c}"
-					data-col-end="${c}"
-					>
-						<div class="layoutDragTop"></div>
-						<div class="layoutDragLeft"></div>
-						<div class="layoutDragBottom"></div>
-						<div class="layoutDragRight"></div>
-					</div>`);
-				}
-			}
-		} else {
-			for (let c = fromY; c < toY+1; c++) {
-				$cont.each(function(i, pip) {
-					Number($(pip).attr('data-row-start'))
-				});
-			}
-		}
-
-		renumberPips();
-
+		doResize(e);
 	});
+
+	$(document).on('submit', function(e) {
+		const $trg = $(e.target);
+		if ($trg.hasClass('renameForm')) {
+			e.preventDefault();
+			const text = $trg.find('.renameLayoutInput').val();
+			getActiveLayout().Name = text;
+			drawAdvancedLayoutSelect();
+		}
+	});
+
+	$(document).keyup(function(e) {
+		if (e.key === "Escape") {
+			$('body').removeClass('fullscreen');
+			document.exitFullscreen();
+	   }
+   });
 
 	setInterval(() => {
 		for (thumb of document.getElementsByClassName('thumbnail')) {
-			thumb.src = thumb.dataset.src + "?" + new Date().getTime();
+			//thumb.src = thumb.dataset.src + "?" + new Date().getTime();
 		}
 	}, 1000)
 });
+
+{ // Config
+	function configRowDone($trg) {
+		let $row = $trg.closest('tr');
+		let data = {};
+		$row.children().each(function() {
+			let $td = $(this);
+			let value = $td.data('value');
+			switch ($td.data('type')) {
+			case 'text':
+				$td.html(value);
+				data[$td.data('key')] = value;
+				break;
+			case 'range':
+				$td.html(`${$td.data('from')} to ${$td.data('to')}`);
+				data[$td.data('key-from')] = parseInt($td.data('from'));
+				data[$td.data('key-to')] = parseInt($td.data('to'));
+				$td.removeClass('input-group');
+				break;
+			case 'select':
+				if (value == "") value = $td.children()[0].value
+				$td.html(value);
+				data[$td.data('key')] = value;
+				break;
+			case 'readonly':
+				data[$td.data('key')] = value;
+			default:
+				break;
+			}
+			$trg.html('Edit');
+			$trg.addClass('editConfig');
+			$trg.addClass('btn-danger');
+			$trg.removeClass('doneConfig');
+			$trg.removeClass('btn-success');
+		});
+		let editor = $row.closest('table').data('editor');
+		let current = editors[editor].get();
+		current[$row.data('index')] = data;
+		editors[editor].set(current);
+		editors[editor].expandAll();
+	}
+	
+	function configRowAdd() {
+		const $tbody = $('.tab-pane.active table[data-editor]').find('tbody');
+		const $rows = $tbody.children();
+		let newID = 0;
+		const IDs = [];
+		$rows.each(function(){
+			const row = $(this);
+			newID = row.data('id') > newID ? row.data('id') : newID;
+			IDs.push(row.data('id'));
+		});
+		newID++;
+		for (let index = 1; index < newID; index++) {
+			if (IDs.includes(index)) continue;
+			newID = index;
+			break;
+		}
+		const index = $rows.length;
+		const template = $tbody.data('template');
+		const dummyData = [];
+		dummyData[0] = {};
+		switch (template) {
+		case 'encoder':
+			dummyData[0].Name = `Camera ${newID}`;
+			dummyData[0].ID = newID;
+			dummyData[0].Type = 'Select';
+			dummyData[0].URL = '';
+			break;
+		case 'decoder':
+			dummyData[0].Name = `Decoder ${newID}`;
+			dummyData[0].ID = newID;
+			dummyData[0].Feed = 'Select';
+			dummyData[0].URL = '';
+			break;
+		default:
+			break;
+		}
+		const $new = $(ejs.render(templates[template], {'devices': dummyData}));
+		$new.attr('data-index', index);
+		$new.attr('data-id', newID);
+		$tbody.append($new);
+		$new.find('.editConfig').trigger('click');
+	}
+	
+	function configSave() {
+		let promises = [];
+		for (const editor in editors) {
+			if (Object.hasOwnProperty.call(editors, editor)) {
+				promises.push($.ajax(`${server}set${editor}`, {
+					data : JSON.stringify(editors[editor].get()),
+					contentType : 'application/json',
+					type : 'POST'}
+				));
+			}
+		}
+		encoders = editors['encoders'].get();
+		decoders = editors['decoders'].get();
+		renderStreams();
+		Promise.allSettled(promises).then(() => {
+			alert('Saved');
+		});
+	}
+	
+	function configRowDelete($trg) {
+		const $row = $trg.closest('tr');
+		const $tbody = $trg.closest('tbody');
+		const editor = $row.closest('table').data('editor');
+		let current = editors[editor].get();
+		current.splice($row.data('index'), 1);
+		editors[editor].set(current);
+		editors[editor].expandAll();
+		$row.remove();
+		
+		$tbody.children().each(function(index) {
+			$(this).attr('data-index', index);
+		});
+	}
+	
+	function configRowEdit($trg) {
+		let $row = $trg.closest('tr');
+		$row.children().each(function() {
+			let $td = $(this);
+			switch ($td.data('type')) {
+			case 'text': {
+				let $txt = $(`<input type="text" class="form-control" value="${$td.data('value')}" name="${$td.data('key')}"></input>`);
+				$txt.change(function() {
+					$td.data('value', $txt.val());
+				});
+				$td.html('');
+				$td.append($txt);
+				break;
+			}
+			case 'range': {
+				let $from = $(`<input type="text" class="editRange form-control text-end" value="${$td.data('from')}" name="${$td.data('key-from')}"></input>`);
+				let $to = $(`<input type="text" class="editRange form-control" value="${$td.data('to')}" name="${$td.data('key-to')}"></input>`);
+				$from.change(function() {
+					$td.data('from', $from.val());
+				});
+				$to.change(function() {
+					$td.data('to', $to.val());
+				});
+				$td.html('');
+				$td.addClass('input-group');
+				$td.append($from);
+				$td.append('<span class="input-group-text">to</span>');
+				$td.append($to);
+				break;
+			}
+			case 'select': {
+				let txt = `<select class="btn btn-outline-light" name="${$td.data('key')}">`;
+				if ($td.data('options')) {
+					const options = $td.data('options').split(',');
+					options.forEach(option => {
+						const selected = option == $td.data('value') ? 'selected' : '';
+						txt += `<option value="${option}" ${selected}>${option}</option>`;
+					});
+				} else {
+					const variable = $td.data('variable');
+					window[variable].forEach(data => {
+						console.log(data);
+						const selected = 'feed'+data.ID == $td.data('value') ? 'selected' : '';
+						txt += `<option value="feed${data.ID}" ${selected}>${data.Name}</option>`;
+					});
+				}
+				txt += '</select>';
+				const $txt = $(txt);
+				$txt.change(function() {
+					$td.data('value', $txt.val());
+				});
+				$td.html('');
+				$td.append($txt);
+				break;
+			}
+			case 'readonly': {
+				break;
+			}
+			default:
+				break;
+			}
+			$trg.html('Done');
+			$trg.removeClass('editConfig');
+			$trg.removeClass('btn-danger');
+			$trg.addClass('doneConfig');
+			$trg.addClass('btn-success');
+		});
+	}
+}
+
+
+function layoutSave() {
+	const thisLayout = getActiveLayout();
+	$cont = $('#layoutGridCont');
+	thisLayout.Columns = Number($cont.attr('data-cols'));
+	thisLayout.Rows = Number($cont.attr('data-rows'));
+	thisLayout.Pips = {};
+	$cont.children().each(function(i, pip) {
+		$pip = $(pip);
+		const id = Number($pip.attr('data-pip'));
+		const rowStart = Number($pip.attr('data-row-start'));
+		const rowEnd = Number($pip.attr('data-row-end'));
+		const colStart = Number($pip.attr('data-col-start'));
+		const colEnd = Number($pip.attr('data-col-end'));
+		thisLayout.Pips[id] = {
+			'rowStart':rowStart,
+			'rowEnd':rowEnd,
+			'colStart':colStart,
+			'colEnd':colEnd
+		}
+	});
+	$.ajax(`${server}setlayouts`, {
+		data : JSON.stringify(layouts),
+		contentType : 'application/json',
+		type : 'POST'}
+	)
+}
+
+function doResize(e) {
+	const $resizing = $('.resizing');
+	const $resizingDir = $('.resizingDir');
+	if ($resizing.length < 1) return;
+	console.log('here');
+	$resizing.removeClass('resizing');
+	$resizingDir.removeClass('resizingDir');
+
+	const $cont = $('#layoutGridCont');
+	const left = $cont.offset().left;
+	const width = $cont.width();
+	const cols = Number($cont.attr('data-cols'));
+	const newColPos = Math.ceil((cols * (e.pageX - left))/width);
+
+	const top = $cont.offset().top;
+	const height = $cont.height();
+	const rows = Number($cont.attr('data-rows'));
+	const newRowPos = Math.ceil((rows * (e.pageY - top))/height);
+	
+	if (newColPos > cols || newRowPos > rows || newColPos < 1 || newRowPos < 1) return;
+
+	const oldDims = {
+		'col':{
+			'start':Number($resizing.attr('data-col-start')),
+			'end':Number($resizing.attr('data-col-end'))
+		},
+		'row': {
+			'start':Number($resizing.attr('data-row-start')),
+			'end':Number($resizing.attr('data-row-end'))
+		}
+	}
+	const newDims = {
+		'col':{
+			'start':Number($resizing.attr('data-col-start')),
+			'end':Number($resizing.attr('data-col-end'))
+		},
+		'row': {
+			'start':Number($resizing.attr('data-row-start')),
+			'end':Number($resizing.attr('data-row-end'))
+		}
+	}
+
+	const oldColEnd = Number($resizing.attr('data-col-end'));
+	const oldColStart = Number($resizing.attr('data-col-start'));
+	const oldRowEnd = Number($resizing.attr('data-row-end'));
+	const oldRowStart = Number($resizing.attr('data-row-start'));
+	let fromCol = oldColStart;
+	let toCol = oldColEnd;
+	let fromRow = oldRowStart;
+	let toRow = oldRowEnd;
+	let newCol = false;
+	let newRow = false;
+	if (newColPos > oldDims.col.end) {
+		fromCol = oldDims.col.start;
+		toCol = newColPos;
+		newDims.col.start = oldDims.col.start;
+		newDims.col.end = newColPos;
+		newCol = false;
+	} else if (newColPos < oldDims.col.start) {
+		fromCol = newColPos;
+		toCol = oldDims.col.end;
+		newDims.col.start = newColPos;
+		newDims.col.end = oldDims.col.end;
+		newCol = false;
+	} else if ($resizingDir.hasClass('layoutDragRight')) {
+		fromCol = newColPos;
+		toCol = oldDims.col.end;
+		newDims.col.start = oldDims.col.start;
+		newDims.col.end = newColPos;
+		newCol = true;
+	} else if ($resizingDir.hasClass('layoutDragLeft')) {
+		fromCol = oldDims.col.start;
+		toCol = newColPos;
+		newDims.col.start = newColPos;
+		newDims.col.end = oldDims.col.end;
+		newCol = true;
+	}
+	
+	if (newRowPos > oldDims.row.end) {
+		fromRow = oldDims.row.start;
+		toRow = newRowPos;
+		newDims.row.start = oldDims.row.start;
+		newDims.row.end = newRowPos;
+		newRow = false;
+	} else if (newRowPos < oldDims.row.start) {
+		fromRow = newRowPos;
+		toRow = oldDims.row.end;
+		newDims.row.start = newRowPos;
+		newDims.row.end = oldDims.row.end;
+		newRow = false;
+	} else if ($resizingDir.hasClass('layoutDragBottom')) {
+		fromRow = newRowPos;
+		toRow = oldDims.row.end;
+		newDims.row.start = oldDims.row.start;
+		newDims.row.end = newRowPos;
+		newRow = true;
+	} else if ($resizingDir.hasClass('layoutDragTop')) {
+		fromRow = oldDims.row.start;
+		toRow = newRowPos;
+		newDims.row.start = newRowPos;
+		newDims.row.end = oldDims.row.end;
+		newRow = true;
+	}
+	
+	$resizing.attr('data-col-end', newDims.col.end);
+	$resizing.attr('data-col-start', newDims.col.start);
+	$resizing.attr('data-row-end', newDims.row.end);
+	$resizing.attr('data-row-start', newDims.row.start);
+
+	if (newCol) {
+		for (let c = fromCol; c < toCol+1; c++) {
+			for (let r = oldRowStart; r < oldRowEnd+1; r++) {
+				$cont.append(`<div class="layoutPlaceholder layoutPip"
+				data-pip="100"
+				data-col-start="${c}"
+				data-col-end="${c}"
+				data-row-start="${r}"
+				data-row-end="${r}"
+				>
+					<div class="layoutDragTop"></div>
+					<div class="layoutDragLeft"></div>
+					<div class="layoutDragBottom"></div>
+					<div class="layoutDragRight"></div>
+				</div>`);
+			}
+		}
+	}
+
+	if (newRow) {
+		for (let c = oldColStart; c < oldColEnd+1; c++) {
+			for (let r = fromRow; r < toRow+1; r++) {
+				$cont.append(`<div class="layoutPlaceholder layoutPip"
+				data-pip="100"
+				data-col-start="${c}"
+				data-col-end="${c}"
+				data-row-start="${r}"
+				data-row-end="${r}"
+				>
+					<div class="layoutDragTop"></div>
+					<div class="layoutDragLeft"></div>
+					<div class="layoutDragBottom"></div>
+					<div class="layoutDragRight"></div>
+				</div>`);
+			}
+		}
+	}
+
+	$cont.children().each(function(i, pip) {
+		const $pip = $(pip);
+		if ($pip.is($resizing)) return;
+		const pipRowStart = Number($pip.attr('data-row-start'));
+		const pipRowEnd = Number($pip.attr('data-row-end'));
+		const pipColStart = Number($pip.attr('data-col-start'));
+		const pipColEnd = Number($pip.attr('data-col-end'));
+
+		const rowStartBetween = (newDims.row.start <= pipRowStart && pipRowStart <= newDims.row.end);
+		const rowEndBetween = (newDims.row.start <= pipRowEnd && pipRowEnd <= newDims.row.end);
+		const colStartBetween = (newDims.col.start <= pipColStart && pipColStart <= newDims.col.end);
+		const colEndBetween = (newDims.col.start <= pipColEnd && pipColEnd <= newDims.col.end);
+		const rowOutside = (pipRowStart <= newDims.row.start && newDims.row.end <= pipRowEnd);
+		const colOutside = (pipColStart <= newDims.col.start && newDims.col.end <= pipColEnd);
+
+		let split = false;
+		if ((rowStartBetween || rowEndBetween) && (colStartBetween || colEndBetween)) split = true;
+		if (colOutside && (rowStartBetween || rowEndBetween)) split = true;
+		if (rowOutside && (colStartBetween || colEndBetween)) split = true;
+
+		if (split) pipSplit(pip);
+	});
+
+	$cont.children().each(function(i, pip) {
+		const $pip = $(pip);
+		if ($pip.is($resizing)) return;
+		const pipRowStart = Number($pip.attr('data-row-start'));
+		const pipRowEnd = Number($pip.attr('data-row-end'));
+		const pipColStart = Number($pip.attr('data-col-start'));
+		const pipColEnd = Number($pip.attr('data-col-end'));
+
+		const rowStartBetween = (newDims.row.start <= pipRowStart && pipRowStart <= newDims.row.end);
+		const rowEndBetween = (newDims.row.start <= pipRowEnd && pipRowEnd <= newDims.row.end);
+		const colStartBetween = (newDims.col.start <= pipColStart && pipColStart <= newDims.col.end);
+		const colEndBetween = (newDims.col.start <= pipColEnd && pipColEnd <= newDims.col.end);
+
+		if ((rowStartBetween || rowEndBetween) && (colStartBetween || colEndBetween)) {
+			$pip.remove();
+		}
+	});
+
+	renumberPips();
+}
 
 function pipSplit(pip) {
 	const $pip = $(pip);
@@ -649,9 +839,12 @@ function pipSplit(pip) {
 	const colStart = Number($pip.attr('data-col-start'));
 	const rowEnd = Number($pip.attr('data-row-end'));
 	const rowStart = Number($pip.attr('data-row-start'));
+	if (colEnd == colStart) return;
+	if (rowEnd == rowStart) return;
+	console.log('Splitting:', pip);
 	for (let r = rowStart; r < rowEnd+1; r++) {
 		for (let c = colStart; c < colEnd+1; c++) {
-			$('#layoutGridCont').append(`<div class="layoutPlaceholder"
+			$('#layoutGridCont').append(`<div class="layoutPlaceholder layoutPip"
 			data-pip="100"
 			data-row-start="${r}"
 			data-row-end="${r}"
@@ -666,7 +859,6 @@ function pipSplit(pip) {
 		}
 	}
 	$pip.remove();
-	renumberPips();
 }
 
 function renumberPips() {
@@ -675,11 +867,30 @@ function renumberPips() {
 	})
 }
 
+function getActiveLayout() {
+	return layouts.filter(layout => layout.ID == activeLayout)[0];
+}
+
+function drawAdvancedLayoutSelect() {
+	$tabCont = $('#nav-tab');
+	$tabCont.html('');
+	$tabViewCont = $('#layoutTabs');
+	$tabViewCont.html('');
+
+	layouts.forEach(layout => {
+		const id = layout.ID;
+		$button = `<button class="nav-link layoutConfigSelect" id="layout${id}-tab" data-id="${id}" data-bs-toggle="tab" data-bs-target="#layout${id}" type="button" role="tab" aria-controls="layout${id}" aria-selected="false" tabindex="-1">${layout.Name}</button>`;
+		$tabCont.append($button);
+		$viewButton = `<button class="btn btn-secondary layout-btn me-1" id="nav-layout-${id}-tab" data-id="${id}" data-bs-toggle="tab" data-bs-target="#layout${id}" type="button" aria-selected="false" role="tab" tabindex="-1">${layout.Name}</button>`
+		$tabViewCont.append($viewButton);
+	});
+	$tabCont.children(`[data-id="${activeLayout}"]`).click();
+	$tabViewCont.children(`[data-id="${activeLayout}"]`).click();
+}
+
 function drawConfigLayout() {
-	const thisLayout = layouts.filter(layout => layout.ID == activeLayout)[0];
+	const thisLayout = getActiveLayout();
 	const $cont = $("#layoutGridCont");
-	const oldCols = $cont.attr("data-cols");
-	const oldRows = $cont.attr("data-rows");
 	$cont.attr("data-cols", thisLayout.Columns);
 	$cont.attr("data-rows", thisLayout.Rows);
 	$('#layoutCols').val(thisLayout.Columns);
@@ -687,28 +898,28 @@ function drawConfigLayout() {
 
 	$cont.html('');
 
-	let pip = 1;
-	for (let r = 1; r < (thisLayout.Rows)+1; r++) {
-		for (let c = 1; c < (thisLayout.Columns)+1; c++) {
-			$cont.append(`<div class="layoutPlaceholder"
+	const pips = thisLayout.Pips;
+	for (const pip in pips) {
+		if (pips.hasOwnProperty.call(pips, pip)) {
+			const pipProps = pips[pip];
+			$cont.append(`<div class="layoutPlaceholder layoutPip"
 			data-pip="${pip}"
-			data-row-start="${r}"
-			data-row-end="${r}"
-			data-col-start="${c}"
-			data-col-end="${c}"
+			data-row-start="${pipProps.rowStart}"
+			data-row-end="${pipProps.rowEnd}"
+			data-col-start="${pipProps.colStart}"
+			data-col-end="${pipProps.colEnd}"
 			>
 				<div class="layoutDragTop"></div>
 				<div class="layoutDragLeft"></div>
 				<div class="layoutDragBottom"></div>
 				<div class="layoutDragRight"></div>
 			</div>`);
-			pip++;
 		}
 	}
 };
 
 function updateConfigLayout() {
-	const thisLayout = layouts.filter(layout => layout.ID == activeLayout)[0];
+	const thisLayout = getActiveLayout();
 	const $cont = $("#layoutGridCont");
 	const oldCols = Number($cont.attr("data-cols"));
 	const oldRows = Number($cont.attr("data-rows"));
@@ -722,7 +933,7 @@ function updateConfigLayout() {
 	if (oldRows < thisLayout.Rows) {
 		for (let r = oldRows; r < thisLayout.Rows; r++) {
 			for (let c = 1; c < (thisLayout.Columns)+1; c++) {
-				$cont.append(`<div class="layoutPlaceholder"
+				$cont.append(`<div class="layoutPlaceholder layoutPip"
 				data-pip="${pip}"
 				data-row-start="${r+1}"
 				data-row-end="${r+1}"
@@ -754,7 +965,7 @@ function updateConfigLayout() {
 	if (oldCols < thisLayout.Columns) {
 		for (let r = 1; r < (thisLayout.Rows)+1; r++) {
 			for (let c = oldCols; c < thisLayout.Columns; c++) {
-				$cont.append(`<div class="layoutPlaceholder"
+				$cont.append(`<div class="layoutPlaceholder layoutPip"
 				data-pip="${pip}"
 				data-row-start="${r}"
 				data-row-end="${r}"
@@ -1025,7 +1236,15 @@ function renderStreams() {
 			buildLayoutBasic();
 			break;
 		case "advanced":
-			buildLayoutAdvanced();
+			getConfig('layouts').then(values => {
+				layouts = values;
+				loading(false);
+				console.log(layouts);
+				buildLayoutAdvanced();
+				drawAdvancedLayoutSelect();
+			}).catch(error => {
+				console.error(error);
+			});
 			break;
 		default:
 			break;
@@ -1085,7 +1304,31 @@ function buildLayoutBasic() {
 }
 
 function buildLayoutAdvanced() {
-	console.log("WIP");
+	const thisLayout = getActiveLayout();
+	const pips = thisLayout.Pips;
+	const $cont = $('#views');
+	$cont.html('');
+	for (const pip in pips) {
+		if (pips.hasOwnProperty.call(pips, pip)) {
+			const pipProps = pips[pip];
+			$cont.append(`<div class="text-light player-quad layoutPip"
+				data-pip="${pip}"
+				data-row-start="${pipProps.rowStart}"
+				data-row-end="${pipProps.rowEnd}"
+				data-col-start="${pipProps.colStart}"
+				data-col-end="${pipProps.colEnd}">
+				<div class="d-flex justify-content-between">
+					<h4 class="player-title feed-title" data-title="Choose Camera">Choose Camera</h4>
+					<div class="d-flex my-auto mx-1">
+						<button class="btn mutePlayer muted btn-close btn-close-white" type="button"></button>
+						<button class="btn fullPlayer btn-close btn-close-white mx-2" type="button"></button>
+						<button class="btn closePlayer btn-close btn-close-white" type="button"></button>
+					</div>
+				</div>
+				<div class="player-container"></div>
+			</div>`);
+		}
+	}
 }
 
 let beforeInstallPrompt = null;
@@ -1103,51 +1346,4 @@ function errorHandler(event) {
 
 function install() {
   if (beforeInstallPrompt) beforeInstallPrompt.prompt();
-}
-
-
-
-
-
-
-
-
-
-
-
-function getGridPosition(elem) {
-    var gridContainer = elem.parent();
-    var simpleEl = elem.get(0);
-    var gridItems = gridContainer.children('div');
-    const colCount = $(gridContainer).css('grid-template-columns').split(' ').length;
-
-    var row = 0;
-    var col = 0;
-
-    gridItems.each(function(index, el) {
-
-        var item = $(el);
-        if(simpleEl==el) {
-            //console.log("FOUND!")
-            return false;
-        }
-        var gridCols = item.css("grid-column");
-        if (gridCols != undefined && gridCols.indexOf("span") >=0 ) {
-            var gridColumnParts = gridCols.split('/');
-            var spanValue = parseInt(gridColumnParts[0].trim().split(' ')[1], 10);
-            //console.log("spanValue: " + spanValue);
-            col = col+spanValue;
-        } else {
-            col++;
-        }
-        if (col>=colCount) {
-            col=0;
-            row++;
-        }
-    });
-
-    return {
-        row: row,
-        col: col
-    };
 }

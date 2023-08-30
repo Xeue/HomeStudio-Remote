@@ -63,10 +63,8 @@
                 </div>
                 <% break;
             case 'advanced' : %>
-                <div role="tablist">
-                    <% layouts.forEach(layout => { %>
-                        <button class="btn btn-secondary layout-btn" id="nav-layout-<%=layout.ID%>-tab" data-id="<%=layout.ID%>" data-bs-toggle="tab" data-bs-target="#layout<%=layout.ID%>" type="button"><%=layout.Name%></button>
-                    <% }) %>
+                <div role="tablist" id="layoutTabs">
+                    <% layouts.forEach(layout => { %><button class="btn btn-secondary layout-btn me-1" id="nav-layout-<%=layout.ID%>-tab" data-id="<%=layout.ID%>" data-bs-toggle="tab" data-bs-target="#layout<%=layout.ID%>" type="button"><%=layout.Name%></button><% }) %>
                 </div>
                 <% break;
             case 'thumbnails' : %>
@@ -80,6 +78,7 @@
             <% } %>
 
             <% if (layout == 'advanced') { %>
+                <button id="fullscreen" class="btn btn-secondary">Fullscreen</button>
                 <button id="layoutConfig" class="btn btn-secondary">Layout Editor</button>
             <% } %>
                 

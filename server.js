@@ -560,7 +560,7 @@ function loadData(file) {
 	} catch (error) {
 		logger.log(`Cloud not read the file ${file}.json, attempting to create new file`, 'W');
 		logger.debug('File error:', error);
-		const fileData = [];
+		let fileData = [];
 		switch (file) {
 		case 'Encoders':
 			fileData[0] = {
@@ -580,40 +580,75 @@ function loadData(file) {
 			};
 			break;
 		case 'Layouts':
-			fileData[
+			fileData = [
 				{
-					'Name':'Fullframe',
-					'ID':1,
-					'Columns':1,
-					'Rows':1,
-					'Pips':{
-
+					"Name": "Fullframe",
+					"ID": 1,
+					"Columns": 1,
+					"Rows": 1,
+					"Pips": {
+						"1": {
+							"rowStart": 1,
+							"rowEnd": 1,
+							"colStart": 1,
+							"colEnd": 1
+						}
 					},
-					'Mapping':{
-
-					}
-				},{
-					'Name':'Dual',
-					'ID':2,
-					'Columns':2,
-					'Rows':1,
-					'Pips':{
-
+					"Mapping": {}
+				},
+				{
+					"Name": "Dual",
+					"ID": 2,
+					"Columns": 2,
+					"Rows": 1,
+					"Pips": {
+						"1": {
+							"rowStart": 1,
+							"rowEnd": 1,
+							"colStart": 1,
+							"colEnd": 1
+						},
+						"2": {
+							"rowStart": 1,
+							"rowEnd": 1,
+							"colStart": 2,
+							"colEnd": 2
+						}
 					},
-					'Mapping':{
-
-					}
-				},{
-					'Name':'Quad',
-					'ID':3,
-					'Columns':2,
-					'Rows':2,
-					'Pips':{
-
+					"Mapping": {}
+				},
+				{
+					"Name": "Quad",
+					"ID": 3,
+					"Columns": 2,
+					"Rows": 2,
+					"Pips": {
+						"1": {
+							"rowStart": 1,
+							"rowEnd": 1,
+							"colStart": 1,
+							"colEnd": 1
+						},
+						"2": {
+							"rowStart": 2,
+							"rowEnd": 2,
+							"colStart": 1,
+							"colEnd": 1
+						},
+						"3": {
+							"rowStart": 1,
+							"rowEnd": 1,
+							"colStart": 2,
+							"colEnd": 2
+						},
+						"4": {
+							"rowStart": 2,
+							"rowEnd": 2,
+							"colStart": 2,
+							"colEnd": 2
+						}
 					},
-					'Mapping':{
-
-					}
+					"Mapping": {}
 				}
 			]
 			break;
