@@ -37,10 +37,10 @@
 				<WorkerCount>1</WorkerCount>
 			</OVT>
 			<!-- Push providers -->
-			<!-- <RTMP>
+			<RTMP>
 				<Port>${env:OME_RTMP_PROV_PORT:1935}</Port>
 				<WorkerCount>1</WorkerCount>
-			</RTMP> -->
+			</RTMP>
 			<SRT>
 				<Port>${env:OME_SRT_PROV_PORT:9999}</Port>
 				<WorkerCount>8</WorkerCount>
@@ -80,7 +80,7 @@
 				</IceCandidates>
 			</WebRTC>
 			<Thumbnail>
-				<Port>1935</Port>
+				<Port>9998</Port>
 			</Thumbnail>
 		</Publishers>
 	</Bind>
@@ -200,7 +200,7 @@
 								<Url>*</Url>
 							</CrossDomains>
 						</WebRTC>
-						<!-- <RTMP /> -->
+						<RTMP />
 						<SRT />
 					</Providers>
 					<Publishers>

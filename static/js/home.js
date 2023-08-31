@@ -1265,8 +1265,8 @@ function buildThumbnails() {
 				<h5 class="card-title feed-title" data-id="${encoder.ID}">${encoder.Name}</h5>
 			</section>
 			<img class="thumbnail card-img-top"
-				src="${encoder.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
-				data-src="${encoder.URL.replace('ws://', 'http://').replace('3333', '1935')}/thumb.jpg"
+				src="${encoder.URL.replace('ws://', 'http://').replace('3333', '9998')}/thumb.jpg"
+				data-src="${encoder.URL.replace('ws://', 'http://').replace('3333', '9998')}/thumb.jpg"
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 		</div>`);
 	});
