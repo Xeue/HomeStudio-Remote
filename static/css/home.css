@@ -27,6 +27,7 @@ html {
 .popup.hidden {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
 }
 
 #loading {
@@ -157,6 +158,7 @@ nav.drag {
 .player-container {
   border-radius: 3px;
   overflow: hidden;
+  margin-block: auto;
 }
 
 .thumbnail {
@@ -299,12 +301,12 @@ nav.drag {
   max-height: 65vh;
 }
 
-.layoutCont[data-rows="1"] {grid-template-rows: repeat(1, 1fr);}
-.layoutCont[data-rows="2"] {grid-template-rows: repeat(2, 1fr);}
-.layoutCont[data-rows="3"] {grid-template-rows: repeat(3, 1fr);}
-.layoutCont[data-rows="4"] {grid-template-rows: repeat(4, 1fr);}
-.layoutCont[data-rows="5"] {grid-template-rows: repeat(5, 1fr);}
-.layoutCont[data-rows="6"] {grid-template-rows: repeat(6, 1fr);}
+.layoutCont[data-rows="1"] {grid-template-rows: repeat(1, auto);}
+.layoutCont[data-rows="2"] {grid-template-rows: repeat(2, auto);}
+.layoutCont[data-rows="3"] {grid-template-rows: repeat(3, auto);}
+.layoutCont[data-rows="4"] {grid-template-rows: repeat(4, auto);}
+.layoutCont[data-rows="5"] {grid-template-rows: repeat(5, auto);}
+.layoutCont[data-rows="6"] {grid-template-rows: repeat(6, auto);}
 
 .layoutCont[data-cols="1"] {grid-template-columns: repeat(1, 1fr);}
 .layoutCont[data-cols="2"] {grid-template-columns: repeat(2, 1fr);}
@@ -331,51 +333,135 @@ nav.drag {
   overflow: hidden;
 }
 
-.layoutDragTop {
+.layoutDragT {
   width: 100%;
   height: var(--width);
   margin: -1rem;
 }
 
-.layoutDragLeft {
+.layoutDragL {
   height: 100%;
   width: var(--width);
   margin: -1rem;
 }
 
-.layoutDragBottom {
+.layoutDragB {
   width: 100%;
   height: var(--width);
   margin-left: -1rem;
   bottom: 0;
 }
 
-.layoutDragRight {
+.layoutDragR {
   height: 100%;
   width: var(--width);
   margin-top: -1rem;
   right: 0;
 }
 
-.layoutDragTop,
-.layoutDragLeft,
-.layoutDragBottom,
-.layoutDragRight {
+.layoutDragT,
+.layoutDragL,
+.layoutDragB,
+.layoutDragR,
+.layoutDragTR,
+.layoutDragTL,
+.layoutDragBL,
+.layoutDragBR {
   position: absolute;
   border-radius: 3px;
   --width: 0.75rem;
 }
 
-.layoutDragTop:hover,
-.layoutDragBottom:hover {
+.layoutDragT:hover,
+.layoutDragB:hover {
   background: rgba(0, 149, 255, 0.438);
-  cursor: row-resize;
+  cursor: s-resize;
 }
 
-.layoutDragLeft:hover,
-.layoutDragRight:hover {
+.layoutDragL:hover,
+.layoutDragR:hover {
   background: rgba(0, 149, 255, 0.438);
-  cursor: col-resize;
+  cursor: e-resize;
+}
+
+.layoutDragTR,
+.layoutDragTL,
+.layoutDragBL,
+.layoutDragBR {
+  width: 33%;
+  height: 33%;
+  pointer-events: none;
+}
+.layoutDragTR::after,
+.layoutDragTR::before,
+.layoutDragTR {
+  right: 0;
+  top: 0;
+}
+.layoutDragTL::after,
+.layoutDragTL::before,
+.layoutDragTL {
+  top: 0;
+  left: 0;
+}
+.layoutDragBL::after,
+.layoutDragBL::before,
+.layoutDragBL {
+  bottom: 0;
+  left: 0;
+}
+.layoutDragBR::after,
+.layoutDragBR::before,
+.layoutDragBR {
+  bottom: 0;
+  right: 0;
+}
+
+
+
+.layoutDragTR::after,
+.layoutDragBR::after,
+.layoutDragTL::after,
+.layoutDragBL::after,
+.layoutDragTR::before,
+.layoutDragBR::before,
+.layoutDragTL::before,
+.layoutDragBL::before {
+  content: "";
+  position: absolute;
+  border-radius: 3px;
+  pointer-events: all;
+}
+.layoutDragTR::before,
+.layoutDragBR::before,
+.layoutDragTL::before,
+.layoutDragBL::before {
+  height: 100%;
+  width: var(--width);
+}
+.layoutDragTR::after,
+.layoutDragBR::after,
+.layoutDragTL::after,
+.layoutDragBL::after {
+  width: 100%;
+  height: var(--width);
+}
+.layoutDragTR:hover::after,
+.layoutDragBR:hover::after,
+.layoutDragTL:hover::after,
+.layoutDragBL:hover::after,
+.layoutDragTR:hover::before,
+.layoutDragBR:hover::before,
+.layoutDragTL:hover::before,
+.layoutDragBL:hover::before {
+  background: rgb(19, 86, 135);
+  cursor: sw-resize;
+}
+.layoutDragBR:hover::before,
+.layoutDragTL:hover::before,
+.layoutDragTL:hover::after,
+.layoutDragBR:hover::after {
+  cursor: se-resize;
 }
 
 .layoutPip[data-col-start="1"] {--col-start: 1;}
@@ -432,6 +518,7 @@ nav.drag {
 
 .fullscreen .layoutCont {
   gap: 0;
+  aspect-ratio: 16/9;
 }
 
 .fullscreen .player-title {
@@ -441,3 +528,46 @@ nav.drag {
 .fullscreen .player-title ~ div {
   display: none !important;
 }
+
+
+#layoutGridCont.resizeShadow::after {
+  content: "";
+  background: rgb(89, 154, 255);
+  --col-start: 0;
+  --col-end: 0;
+  --row-start: 0;
+  --row-end: 0;
+  grid-column: var(--col-start)/var(--col-end);
+  grid-row: var(--row-start)/var(--row-end);
+  position: relative;
+  overflow: hidden;
+  opacity: 0.2;
+  border-radius: 5px;
+  outline: 2px solid rgb(0, 171, 255);
+  cursor: grab;
+}
+
+#layoutGridCont[data-col-start="1"]::after {--col-start: 1;}
+#layoutGridCont[data-col-start="2"]::after {--col-start: 2;}
+#layoutGridCont[data-col-start="3"]::after {--col-start: 3;}
+#layoutGridCont[data-col-start="4"]::after {--col-start: 4;}
+#layoutGridCont[data-col-start="5"]::after {--col-start: 5;}
+#layoutGridCont[data-col-start="6"]::after {--col-start: 6;}
+#layoutGridCont[data-col-end="1"]::after {--col-end: 2;}
+#layoutGridCont[data-col-end="2"]::after {--col-end: 3;}
+#layoutGridCont[data-col-end="3"]::after {--col-end: 4;}
+#layoutGridCont[data-col-end="4"]::after {--col-end: 5;}
+#layoutGridCont[data-col-end="5"]::after {--col-end: 6;}
+#layoutGridCont[data-col-end="6"]::after {--col-end: 7;}
+#layoutGridCont[data-row-start="1"]::after {--row-start: 1;}
+#layoutGridCont[data-row-start="2"]::after {--row-start: 2;}
+#layoutGridCont[data-row-start="3"]::after {--row-start: 3;}
+#layoutGridCont[data-row-start="4"]::after {--row-start: 4;}
+#layoutGridCont[data-row-start="5"]::after {--row-start: 5;}
+#layoutGridCont[data-row-start="6"]::after {--row-start: 6;}
+#layoutGridCont[data-row-end="1"]::after {--row-end: 2;}
+#layoutGridCont[data-row-end="2"]::after {--row-end: 3;}
+#layoutGridCont[data-row-end="3"]::after {--row-end: 4;}
+#layoutGridCont[data-row-end="4"]::after {--row-end: 5;}
+#layoutGridCont[data-row-end="5"]::after {--row-end: 6;}
+#layoutGridCont[data-row-end="6"]::after {--row-end: 7;}

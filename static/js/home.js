@@ -1,15 +1,10 @@
 /* eslint-disable no-undef */
+const prod = false;
 let server = window.location.origin + "/";
 let editors = {};
 const templates = {};
 const players = [];
-let mapping = [
-	1,
-	0,
-	0,
-	0,
-	0
-];
+let mapping = [];
 let activeLayout = 1;
 
 templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
@@ -47,6 +42,23 @@ templates.decoder = `<% for(i = 0; i < devices.length; i++) { %>
 	  </td>
 	</tr>
 <% } %>`;
+
+layoutDragTemplate = `<div class="layoutPlaceholder layoutPip"
+data-pip="<%-pip.id%>"
+data-row-start="<%-pip.rowStart%>"
+data-row-end="<%-pip.rowEnd%>"
+data-col-start="<%-pip.colStart%>"
+data-col-end="<%-pip.colEnd%>"
+>
+	<div class="layoutDrag layoutDragT"></div>
+	<div class="layoutDrag layoutDragL"></div>
+	<div class="layoutDrag layoutDragB"></div>
+	<div class="layoutDrag layoutDragR"></div>
+	<div class="layoutDrag layoutDragTL"></div>
+	<div class="layoutDrag layoutDragTR"></div>
+	<div class="layoutDrag layoutDragBL"></div>
+	<div class="layoutDrag layoutDragBR"></div>
+</div>`
 
 function socketDoOpen(socket) {
 	console.log('Registering as client');
@@ -147,6 +159,11 @@ $(document).ready(function() {
 	localConnection.addEventListener('close', () => {
 		$('#broken').html(`<span class="p-2 badge badge-pill bg-danger">${currentSystem} Offline</span>`);
 	});
+
+	const layoutUnparsed = Cookies.get('activeLayout');
+	if (layoutUnparsed !== undefined) {
+		setActiveLayout(JSON.parse(layoutUnparsed));
+	}
 
 	renderStreams();
 
@@ -252,7 +269,7 @@ $(document).ready(function() {
 		} else if ($trg.is('#nav-four-tab')) {
 			choseWindows(4);
 		} else if ($trg.hasClass('layout-btn')) {
-			activeLayout = Number($trg.attr('data-id'));
+			setActiveLayout($trg.attr('data-id'));
 			buildLayoutAdvanced();
 		} else if ($trg.hasClass('closePlayer')) {
 			closePlayer($trg.closest('.player-quad').find('.player-container').children().first());
@@ -331,7 +348,7 @@ $(document).ready(function() {
 				},
 				"Mapping": {}
 			});
-			activeLayout = newID;
+			setActiveLayout(newID);
 			drawAdvancedLayoutSelect();
 		} else if ($trg.hasClass('renameLayout')) {
 			const $btn = $('.layoutConfigSelect.active');
@@ -342,8 +359,7 @@ $(document).ready(function() {
 			</form>`)
 			$('.renameLayoutInput').focus();
 		} else if ($trg.hasClass('layoutConfigSelect')) {
-			const layoutID = $trg.data('id');
-			activeLayout = layoutID;
+			setActiveLayout($trg.data('id'));
 			drawConfigLayout();
 		} else if (!$trg.hasClass('player-quad') && !$trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
@@ -387,19 +403,28 @@ $(document).ready(function() {
 
 	$(document).mousedown(function(e) {
 		const $trg = $(e.target);
-		if ($trg.hasClass('layoutDragRight')
-			|| $trg.hasClass('layoutDragTop')
-			|| $trg.hasClass('layoutDragLeft')
-			|| $trg.hasClass('layoutDragBottom')
-		) {
+		if ($trg.hasClass('layoutDrag')) {
 			e.preventDefault;
-			$trg.parent().addClass('resizing');
+			const $cont = $('#layoutGridCont');
+			const $pip = $trg.parent();
+			$cont.addClass('resizeShadow');
+			$cont.mousemove(function(e) {
+				doResizeShadow(e)
+			});
+			$cont.attr('data-col-end', $pip.attr('data-col-end'));
+			$cont.attr('data-col-start', $pip.attr('data-col-start'));
+			$cont.attr('data-row-end', $pip.attr('data-row-end'));
+			$cont.attr('data-row-start', $pip.attr('data-row-start'));
+			$pip.addClass('resizing');
 			$trg.addClass('resizingDir');
 		}
 	});
 
 	$(document).mouseup(function(e) {
 		doResize(e);
+		const $cont = $('#layoutGridCont');
+		$cont.off('mousemove');
+		$cont.removeClass('resizeShadow');
 	});
 
 	$(document).on('submit', function(e) {
@@ -417,11 +442,11 @@ $(document).ready(function() {
 			$('body').removeClass('fullscreen');
 			document.exitFullscreen();
 	   }
-   });
+   	});
 
 	setInterval(() => {
 		for (thumb of document.getElementsByClassName('thumbnail')) {
-			thumb.src = thumb.dataset.src + "?" + new Date().getTime();
+			if (prod) thumb.src = thumb.dataset.src + "?" + new Date().getTime();
 		}
 	}, 1000)
 });
@@ -646,7 +671,6 @@ function doResize(e) {
 	const $resizing = $('.resizing');
 	const $resizingDir = $('.resizingDir');
 	if ($resizing.length < 1) return;
-	console.log('here');
 	$resizing.removeClass('resizing');
 	$resizingDir.removeClass('resizingDir');
 
@@ -684,66 +708,32 @@ function doResize(e) {
 		}
 	}
 
-	const oldColEnd = Number($resizing.attr('data-col-end'));
-	const oldColStart = Number($resizing.attr('data-col-start'));
-	const oldRowEnd = Number($resizing.attr('data-row-end'));
-	const oldRowStart = Number($resizing.attr('data-row-start'));
-	let fromCol = oldColStart;
-	let toCol = oldColEnd;
-	let fromRow = oldRowStart;
-	let toRow = oldRowEnd;
-	let newCol = false;
-	let newRow = false;
 	if (newColPos > oldDims.col.end) {
-		fromCol = oldDims.col.start;
-		toCol = newColPos;
 		newDims.col.start = oldDims.col.start;
 		newDims.col.end = newColPos;
-		newCol = false;
 	} else if (newColPos < oldDims.col.start) {
-		fromCol = newColPos;
-		toCol = oldDims.col.end;
 		newDims.col.start = newColPos;
 		newDims.col.end = oldDims.col.end;
-		newCol = false;
-	} else if ($resizingDir.hasClass('layoutDragRight')) {
-		fromCol = newColPos;
-		toCol = oldDims.col.end;
+	} else if ($resizingDir.hasClass('layoutDragR') || $resizingDir.hasClass('layoutDragTR') || $resizingDir.hasClass('layoutDragBR')) {
 		newDims.col.start = oldDims.col.start;
 		newDims.col.end = newColPos;
-		newCol = true;
-	} else if ($resizingDir.hasClass('layoutDragLeft')) {
-		fromCol = oldDims.col.start;
-		toCol = newColPos;
+	} else if ($resizingDir.hasClass('layoutDragL') || $resizingDir.hasClass('layoutDragTL') || $resizingDir.hasClass('layoutDragBL')) {
 		newDims.col.start = newColPos;
 		newDims.col.end = oldDims.col.end;
-		newCol = true;
 	}
 	
 	if (newRowPos > oldDims.row.end) {
-		fromRow = oldDims.row.start;
-		toRow = newRowPos;
 		newDims.row.start = oldDims.row.start;
 		newDims.row.end = newRowPos;
-		newRow = false;
 	} else if (newRowPos < oldDims.row.start) {
-		fromRow = newRowPos;
-		toRow = oldDims.row.end;
 		newDims.row.start = newRowPos;
 		newDims.row.end = oldDims.row.end;
-		newRow = false;
-	} else if ($resizingDir.hasClass('layoutDragBottom')) {
-		fromRow = newRowPos;
-		toRow = oldDims.row.end;
+	} else if ($resizingDir.hasClass('layoutDragB') || $resizingDir.hasClass('layoutDragBR') || $resizingDir.hasClass('layoutDragBL')) {
 		newDims.row.start = oldDims.row.start;
 		newDims.row.end = newRowPos;
-		newRow = true;
-	} else if ($resizingDir.hasClass('layoutDragTop')) {
-		fromRow = oldDims.row.start;
-		toRow = newRowPos;
+	} else if ($resizingDir.hasClass('layoutDragT') || $resizingDir.hasClass('layoutDragTL') || $resizingDir.hasClass('layoutDragTR')) {
 		newDims.row.start = newRowPos;
 		newDims.row.end = oldDims.row.end;
-		newRow = true;
 	}
 	
 	$resizing.attr('data-col-end', newDims.col.end);
@@ -751,43 +741,23 @@ function doResize(e) {
 	$resizing.attr('data-row-end', newDims.row.end);
 	$resizing.attr('data-row-start', newDims.row.start);
 
-	if (newCol) {
-		for (let c = fromCol; c < toCol+1; c++) {
-			for (let r = oldRowStart; r < oldRowEnd+1; r++) {
-				$cont.append(`<div class="layoutPlaceholder layoutPip"
-				data-pip="100"
-				data-col-start="${c}"
-				data-col-end="${c}"
-				data-row-start="${r}"
-				data-row-end="${r}"
-				>
-					<div class="layoutDragTop"></div>
-					<div class="layoutDragLeft"></div>
-					<div class="layoutDragBottom"></div>
-					<div class="layoutDragRight"></div>
-				</div>`);
-			}
+
+	for (let c = oldDims.col.start; c < oldDims.col.end+1; c++) {
+		for (let r = oldDims.row.start; r < oldDims.row.end+1; r++) {
+			$cont.append(
+				ejs.render(layoutDragTemplate, {
+					pip: {
+						'id': 100,
+						'colStart': c,
+						'colEnd': c,
+						'rowStart': r,
+						'rowEnd': r
+					}
+				})
+			);
 		}
 	}
 
-	if (newRow) {
-		for (let c = oldColStart; c < oldColEnd+1; c++) {
-			for (let r = fromRow; r < toRow+1; r++) {
-				$cont.append(`<div class="layoutPlaceholder layoutPip"
-				data-pip="100"
-				data-col-start="${c}"
-				data-col-end="${c}"
-				data-row-start="${r}"
-				data-row-end="${r}"
-				>
-					<div class="layoutDragTop"></div>
-					<div class="layoutDragLeft"></div>
-					<div class="layoutDragBottom"></div>
-					<div class="layoutDragRight"></div>
-				</div>`);
-			}
-		}
-	}
 
 	$cont.children().each(function(i, pip) {
 		const $pip = $(pip);
@@ -809,6 +779,7 @@ function doResize(e) {
 		if (colOutside && (rowStartBetween || rowEndBetween)) split = true;
 		if (rowOutside && (colStartBetween || colEndBetween)) split = true;
 
+		if (split) console.log('Split');
 		if (split) pipSplit(pip);
 	});
 
@@ -833,29 +804,101 @@ function doResize(e) {
 	renumberPips();
 }
 
+function doResizeShadow(e) {
+	const $resizing = $('.resizing');
+	const $resizingDir = $('.resizingDir');
+	if ($resizing.length < 1) return;
+	const $cont = $('#layoutGridCont');
+	const left = $cont.offset().left;
+	const width = $cont.width();
+	const cols = Number($cont.attr('data-cols'));
+	const newColPos = Math.ceil((cols * (e.pageX - left))/width);
+
+	const top = $cont.offset().top;
+	const height = $cont.height();
+	const rows = Number($cont.attr('data-rows'));
+	const newRowPos = Math.ceil((rows * (e.pageY - top))/height);
+	
+	if (newColPos > cols || newRowPos > rows || newColPos < 1 || newRowPos < 1) return;
+
+	const oldDims = {
+		'col':{
+			'start':Number($resizing.attr('data-col-start')),
+			'end':Number($resizing.attr('data-col-end'))
+		},
+		'row': {
+			'start':Number($resizing.attr('data-row-start')),
+			'end':Number($resizing.attr('data-row-end'))
+		}
+	}
+	const newDims = {
+		'col':{
+			'start':Number($resizing.attr('data-col-start')),
+			'end':Number($resizing.attr('data-col-end'))
+		},
+		'row': {
+			'start':Number($resizing.attr('data-row-start')),
+			'end':Number($resizing.attr('data-row-end'))
+		}
+	}
+
+	if (newColPos > oldDims.col.end) {
+		newDims.col.start = oldDims.col.start;
+		newDims.col.end = newColPos;
+	} else if (newColPos < oldDims.col.start) {
+		newDims.col.start = newColPos;
+		newDims.col.end = oldDims.col.end;
+	} else if ($resizingDir.hasClass('layoutDragR') || $resizingDir.hasClass('layoutDragTR') || $resizingDir.hasClass('layoutDragBR')) {
+		newDims.col.start = oldDims.col.start;
+		newDims.col.end = newColPos;
+	} else if ($resizingDir.hasClass('layoutDragL') || $resizingDir.hasClass('layoutDragTL') || $resizingDir.hasClass('layoutDragBL')) {
+		newDims.col.start = newColPos;
+		newDims.col.end = oldDims.col.end;
+	}
+	
+	if (newRowPos > oldDims.row.end) {
+		newDims.row.start = oldDims.row.start;
+		newDims.row.end = newRowPos;
+	} else if (newRowPos < oldDims.row.start) {
+		newDims.row.start = newRowPos;
+		newDims.row.end = oldDims.row.end;
+	} else if ($resizingDir.hasClass('layoutDragB') || $resizingDir.hasClass('layoutDragBR') || $resizingDir.hasClass('layoutDragBL')) {
+		newDims.row.start = oldDims.row.start;
+		newDims.row.end = newRowPos;
+	} else if ($resizingDir.hasClass('layoutDragT') || $resizingDir.hasClass('layoutDragTL') || $resizingDir.hasClass('layoutDragTR')) {
+		newDims.row.start = newRowPos;
+		newDims.row.end = oldDims.row.end;
+		newRow = true;
+	}
+	
+	$cont.attr('data-col-end', newDims.col.end);
+	$cont.attr('data-col-start', newDims.col.start);
+	$cont.attr('data-row-end', newDims.row.end);
+	$cont.attr('data-row-start', newDims.row.start);
+}
+
+
 function pipSplit(pip) {
 	const $pip = $(pip);
 	const colEnd = Number($pip.attr('data-col-end'));
 	const colStart = Number($pip.attr('data-col-start'));
 	const rowEnd = Number($pip.attr('data-row-end'));
 	const rowStart = Number($pip.attr('data-row-start'));
-	if (colEnd == colStart) return;
-	if (rowEnd == rowStart) return;
+	if (colEnd == colStart && rowEnd == rowStart) return;
 	console.log('Splitting:', pip);
 	for (let r = rowStart; r < rowEnd+1; r++) {
 		for (let c = colStart; c < colEnd+1; c++) {
-			$('#layoutGridCont').append(`<div class="layoutPlaceholder layoutPip"
-			data-pip="100"
-			data-row-start="${r}"
-			data-row-end="${r}"
-			data-col-start="${c}"
-			data-col-end="${c}"
-			>
-				<div class="layoutDragTop"></div>
-				<div class="layoutDragLeft"></div>
-				<div class="layoutDragBottom"></div>
-				<div class="layoutDragRight"></div>
-			</div>`);
+			$('#layoutGridCont').append(
+				ejs.render(layoutDragTemplate, {
+					pip: {
+						'id': 100,
+						'colStart': c,
+						'colEnd': c,
+						'rowStart': r,
+						'rowEnd': r
+					}
+				})
+			);
 		}
 	}
 	$pip.remove();
@@ -869,6 +912,13 @@ function renumberPips() {
 
 function getActiveLayout() {
 	return layouts.filter(layout => layout.ID == activeLayout)[0];
+}
+
+function setActiveLayout(number) {
+	activeLayout = Number(number);
+	Cookies.set('activeLayout', JSON.stringify(activeLayout), {
+		SameSite: 'Lax'
+	});
 }
 
 function drawAdvancedLayoutSelect() {
@@ -902,18 +952,17 @@ function drawConfigLayout() {
 	for (const pip in pips) {
 		if (pips.hasOwnProperty.call(pips, pip)) {
 			const pipProps = pips[pip];
-			$cont.append(`<div class="layoutPlaceholder layoutPip"
-			data-pip="${pip}"
-			data-row-start="${pipProps.rowStart}"
-			data-row-end="${pipProps.rowEnd}"
-			data-col-start="${pipProps.colStart}"
-			data-col-end="${pipProps.colEnd}"
-			>
-				<div class="layoutDragTop"></div>
-				<div class="layoutDragLeft"></div>
-				<div class="layoutDragBottom"></div>
-				<div class="layoutDragRight"></div>
-			</div>`);
+			$cont.append(
+				ejs.render(layoutDragTemplate, {
+					pip: {
+						'id': pip,
+						'colStart': pipProps.colStart,
+						'colEnd': pipProps.colEnd,
+						'rowStart': pipProps.rowStart,
+						'rowEnd': pipProps.rowEnd
+					}
+				})
+			);
 		}
 	}
 };
@@ -933,18 +982,17 @@ function updateConfigLayout() {
 	if (oldRows < thisLayout.Rows) {
 		for (let r = oldRows; r < thisLayout.Rows; r++) {
 			for (let c = 1; c < (thisLayout.Columns)+1; c++) {
-				$cont.append(`<div class="layoutPlaceholder layoutPip"
-				data-pip="${pip}"
-				data-row-start="${r+1}"
-				data-row-end="${r+1}"
-				data-col-start="${c}"
-				data-col-end="${c}"
-				>
-					<div class="layoutDragTop"></div>
-					<div class="layoutDragLeft"></div>
-					<div class="layoutDragBottom"></div>
-					<div class="layoutDragRight"></div>
-				</div>`);
+				$cont.append(
+					ejs.render(layoutDragTemplate, {
+						pip: {
+							'id': pip,
+							'colStart': c,
+							'colEnd': c,
+							'rowStart': r+1,
+							'rowEnd': r+1
+						}
+					})
+				);
 				pip++;
 			}
 		}
@@ -965,18 +1013,17 @@ function updateConfigLayout() {
 	if (oldCols < thisLayout.Columns) {
 		for (let r = 1; r < (thisLayout.Rows)+1; r++) {
 			for (let c = oldCols; c < thisLayout.Columns; c++) {
-				$cont.append(`<div class="layoutPlaceholder layoutPip"
-				data-pip="${pip}"
-				data-row-start="${r}"
-				data-row-end="${r}"
-				data-col-start="${c+1}"
-				data-col-end="${c+1}"
-				>
-					<div class="layoutDragTop"></div>
-					<div class="layoutDragLeft"></div>
-					<div class="layoutDragBottom"></div>
-					<div class="layoutDragRight"></div>
-				</div>`);
+				$cont.append(
+					ejs.render(layoutDragTemplate, {
+						pip: {
+							'id': pip,
+							'colStart': c+1,
+							'colEnd': c+1,
+							'rowStart': r,
+							'rowEnd': r
+						}
+					})
+				);
 				pip++;
 			}
 		}
@@ -998,7 +1045,7 @@ function updateConfigLayout() {
 };
 
 function choseWindows(number) {
-	mapping[0] = number;
+	setActiveLayout(number);
 	const $one = $('#camOne');
 	const $two = $('#camTwo');
 	const $three = $('#camThree');
@@ -1056,7 +1103,7 @@ function choseWindows(number) {
 		default:
 			break;
 	}
-	Cookies.set('mapping', JSON.stringify(mapping), {
+	Cookies.set('activeLayout', JSON.stringify(activeLayout), {
 		SameSite: 'Lax'
 	});
 }
@@ -1075,23 +1122,8 @@ function openPlayer($element) {
 	if ($newPlayer.length > 0 && !$curentPlayer.is($newPlayer)) closePlayer($newPlayer);
 
 	$selectedCont.html($player);
-
-	switch ($selectedCont.closest('.player-quad').data('type')) {
-		case 'oneCam':
-			mapping[1] = streamID;
-			break;
-		case 'twoCam':
-			mapping[2] = streamID;
-			break;
-		case 'threeCam':
-			mapping[3] = streamID;
-			break;
-		case 'fourCam':
-			mapping[4] = streamID;
-			break;
-		default:
-			break;
-	}
+	const pip = Number($selectedCont.closest('.player-quad').attr('data-pip'));
+	mapping[pip] = streamID;
 	Cookies.set('mapping', JSON.stringify(mapping), {
 		SameSite: 'Lax'
 	});
@@ -1172,22 +1204,8 @@ function closePlayer($element) {
 		$title.data('id', '');
 		OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
 		$element.remove();
-		switch ($cont.data('type')) {
-			case 'oneCam':
-				mapping[1] = 0;
-				break;
-			case 'twoCam':
-				mapping[2] = 0;
-				break;
-			case 'threeCam':
-				mapping[3] = 0;
-				break;
-			case 'fourCam':
-				mapping[4] = 0;
-				break;
-			default:
-				break;
-		}
+		const pip = Number($cont.attr('data-pip'));
+		mapping[pip] = 0;
 		Cookies.set('mapping', JSON.stringify(mapping), {
 			SameSite: 'Lax'
 		});
@@ -1239,7 +1257,6 @@ function renderStreams() {
 			getConfig('layouts').then(values => {
 				layouts = values;
 				loading(false);
-				console.log(layouts);
 				buildLayoutAdvanced();
 				drawAdvancedLayoutSelect();
 			}).catch(error => {
@@ -1272,41 +1289,36 @@ function buildThumbnails() {
 	});
 }
 
+function loadPips() {
+	const mappingUnparsed = Cookies.get('mapping');	
+	if (mappingUnparsed === undefined) return;
+	mapping = JSON.parse(mappingUnparsed);
+	$('.selectedPlayer').removeClass('selectedPlayer');
+	$('#views').children().each(function(i, window) {
+		const $window = $(window);
+		const pip = Number($window.attr('data-pip'));
+		const streamID = mapping[pip]
+		if (!streamID) return;
+		$window.addClass('selectedPlayer');
+		openPlayer($(`.sourceSelect[data-id="${streamID}"]`));
+		$window.removeClass('selectedPlayer');
+	});
+}
+
 function buildLayoutBasic() {
-	const mappingUnparsed = Cookies.get('mapping');
-	if (mappingUnparsed !== undefined) {
-		mapping = JSON.parse(mappingUnparsed);
-		choseWindows(mapping[0]);
-		for (let window = 1; window < mapping[0]+1; window++) {
-			const source = mapping[window];
-			if (source == 0) continue;
-			$('.selectedPlayer').removeClass('selectedPlayer');
-			switch (window) {
-				case 1:
-					$('#camOne').addClass('selectedPlayer')
-					break;
-				case 2:
-					$('#camTwo').addClass('selectedPlayer')
-					break;
-				case 3:
-					$('#camThree').addClass('selectedPlayer')
-					break;
-				case 4:
-					$('#camFour').addClass('selectedPlayer')
-					break;
-				default:
-					break;
-			}
-			openPlayer($(`.sourceSelect[data-id="${source}"]`));
-			$('.selectedPlayer').removeClass('selectedPlayer');
-		}
-	}
+	const layoutUnparsed = Cookies.get('activeLayout');
+	if (layoutUnparsed === undefined) return;
+	setActiveLayout(JSON.parse(layoutUnparsed));
+	choseWindows(activeLayout);
+	loadPips();
 }
 
 function buildLayoutAdvanced() {
 	const thisLayout = getActiveLayout();
 	const pips = thisLayout.Pips;
 	const $cont = $('#views');
+	$cont.attr('data-cols', thisLayout.Columns);
+	$cont.attr('data-rows', thisLayout.Rows);
 	$cont.html('');
 	for (const pip in pips) {
 		if (pips.hasOwnProperty.call(pips, pip)) {
@@ -1329,6 +1341,7 @@ function buildLayoutAdvanced() {
 			</div>`);
 		}
 	}
+	loadPips();
 }
 
 let beforeInstallPrompt = null;

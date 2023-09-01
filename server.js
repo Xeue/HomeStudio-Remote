@@ -68,6 +68,7 @@ let configLoaded = false;
 		config.require('host', [], 'What is the IP/host of Oven Media Engine? (normally this machines IP)');
 		config.require('port', [], 'What port shall the server use');
 		config.require('systemName', [], 'What is the name of the system/job');
+		config.require('defaultLayout', {'thumnail': 'Thumnails Only', 'basic':'Basic Presets','advanced': 'Advanced With Editor'}, 'What should the default view be when a user connects');
 		config.require('allowLowres', {true: 'Yes', false: 'No'}, 'Generate lowres proxys for small pips');
 		config.require('reconnectTimeoutSeconds', [], 'How long should a stream wait before trying to reconnect in the GUI');
 		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
@@ -83,6 +84,7 @@ let configLoaded = false;
 		config.default('systemName', 'Home Studio');
 		config.default('loggingLevel', 'W');
 		config.default('homestudioKey', '');
+		config.default('defaultLayout', 'basic');
 		config.default('allowLowres', true);
 		config.default('createLogFile', true);
 		config.default('debugLineNum', false);
@@ -400,7 +402,7 @@ function expressRoutes(expressApp) {
 	expressApp.use(express.static(__static));
 
 	const homeOptions = {
-		systemName:config.get('systemName'),
+		systemName: config.get('systemName'),
 		version: version,
 		homestudioKey: config.get('homestudioKey'),
 		encoders: encoders(),
@@ -416,7 +418,7 @@ function expressRoutes(expressApp) {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
 		homeOptions.config = false;
-		homeOptions.layout = "basic";
+		homeOptions.layout = config.get('defaultLayout');
 		homeOptions.inApp = false;
 		res.render('home', homeOptions);
 	});
@@ -424,7 +426,7 @@ function expressRoutes(expressApp) {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
 		homeOptions.config = true;
-		homeOptions.layout = "basic";
+		homeOptions.layout = "thumbnail";
 		homeOptions.inApp = false;
 		res.render('home', homeOptions);
 	});
@@ -436,6 +438,22 @@ function expressRoutes(expressApp) {
 		homeOptions.inApp = false;
 		res.render('home', homeOptions);
 	});
+	expressApp.get('/basic',  (req, res) =>  {
+		logger.log('New client connected', 'A');
+		res.header('Content-type', 'text/html');
+		homeOptions.config = false;
+		homeOptions.layout = "basic";
+		homeOptions.inApp = false;
+		res.render('home', homeOptions);
+	});
+	expressApp.get('/thumbnails',  (req, res) =>  {
+		logger.log('New client connected', 'A');
+		res.header('Content-type', 'text/html');
+		homeOptions.config = false;
+		homeOptions.layout = "thumbnail";
+		homeOptions.inApp = false;
+		res.render('home', homeOptions);
+	});
 	expressApp.get('/app',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
@@ -443,6 +461,32 @@ function expressRoutes(expressApp) {
 		homeOptions.layout = "thumbnail";
 		homeOptions.inApp = true;
 		res.render('home', homeOptions);
+	});
+	expressApp.get('/about',  async (req, res) =>  {
+		logger.log('New client connected', 'A');
+		res.header('Content-type', 'text/html');
+		const shell = new Shell(logger, 'DOCKER', 'D', 'powershell.exe');
+		const dockerFullVersion = await shell.run("docker version");
+		const dockerDetails = {};
+		String(dockerFullVersion.stdout).split('\n').forEach(line => {
+			const trimmed = line.replace(/  /g, '');
+			const split = trimmed.split(':');
+			const key = split[0].trim();
+			const val = split[1]?.trim();
+			if (key && val) dockerDetails[key] = val;
+		})
+		const aboutInfo = {
+			'aboutInfo': {
+				'Version': version,
+				'Config': config.all(),
+				'Docker': dockerDetails,
+				'Layouts': layouts(),
+				'Encoders': encoders(),
+				'Decoders': decoders()
+			},
+			'systemName': config.get('systemName')
+		}
+		res.render('about', aboutInfo);
 	});
 
 	expressApp.get('/getConfig', (req, res) => {
