@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-const prod = false;
+const prod = true;
 let server = window.location.origin + "/";
 let editors = {};
 const templates = {};
