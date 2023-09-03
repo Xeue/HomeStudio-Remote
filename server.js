@@ -401,7 +401,7 @@ function expressRoutes(expressApp) {
 	expressApp.use(express.json());
 	expressApp.use(express.static(__static));
 
-	const homeOptions = {
+	function getHomeOptions() {return {
 		systemName: config.get('systemName'),
 		version: version,
 		homestudioKey: config.get('homestudioKey'),
@@ -412,11 +412,12 @@ function expressRoutes(expressApp) {
 		dockerCommand: dockerCommand,
 		reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
 		allowLowres: config.get('allowLowres')
-	}
+	}}
 
 	expressApp.get('/',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
+		const homeOptions = getHomeOptions();
 		homeOptions.config = false;
 		homeOptions.layout = config.get('defaultLayout');
 		homeOptions.inApp = false;
@@ -425,6 +426,7 @@ function expressRoutes(expressApp) {
 	expressApp.get('/config',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
+		const homeOptions = getHomeOptions();
 		homeOptions.config = true;
 		homeOptions.layout = "thumbnail";
 		homeOptions.inApp = false;
@@ -433,6 +435,7 @@ function expressRoutes(expressApp) {
 	expressApp.get('/advanced',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
+		const homeOptions = getHomeOptions();
 		homeOptions.config = false;
 		homeOptions.layout = "advanced";
 		homeOptions.inApp = false;
@@ -441,6 +444,7 @@ function expressRoutes(expressApp) {
 	expressApp.get('/basic',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
+		const homeOptions = getHomeOptions();
 		homeOptions.config = false;
 		homeOptions.layout = "basic";
 		homeOptions.inApp = false;
@@ -449,6 +453,7 @@ function expressRoutes(expressApp) {
 	expressApp.get('/thumbnails',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
+		const homeOptions = getHomeOptions();
 		homeOptions.config = false;
 		homeOptions.layout = "thumbnail";
 		homeOptions.inApp = false;
@@ -457,6 +462,7 @@ function expressRoutes(expressApp) {
 	expressApp.get('/app',  (req, res) =>  {
 		logger.log('New client connected', 'A');
 		res.header('Content-type', 'text/html');
+		const homeOptions = getHomeOptions();
 		homeOptions.config = true;
 		homeOptions.layout = "thumbnail";
 		homeOptions.inApp = true;
@@ -674,16 +680,16 @@ function loadData(file) {
 							"colEnd": 1
 						},
 						"2": {
-							"rowStart": 2,
-							"rowEnd": 2,
-							"colStart": 1,
-							"colEnd": 1
-						},
-						"3": {
 							"rowStart": 1,
 							"rowEnd": 1,
 							"colStart": 2,
 							"colEnd": 2
+						},
+						"3": {
+							"rowStart": 2,
+							"rowEnd": 2,
+							"colStart": 1,
+							"colEnd": 1
 						},
 						"4": {
 							"rowStart": 2,
