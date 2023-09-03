@@ -361,6 +361,9 @@ $(document).ready(function() {
 		} else if ($trg.hasClass('layoutConfigSelect')) {
 			setActiveLayout($trg.data('id'));
 			drawConfigLayout();
+		} else if ($trg.is('#thumbclear')) {
+			$('.sourceSelect').removeClass('d-none');
+			$('#thumbinput').val('');
 		} else if (!$trg.hasClass('player-quad') && !$trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 		}
@@ -388,16 +391,12 @@ $(document).ready(function() {
 			}
 		} else if ($trg.is('#layoutCols')) {
 			const cols = Number($trg.val());
-			//const oldCols = getActiveLayout().Columns;
 			getActiveLayout().Columns = cols;
 			updateConfigLayout();
-			//getActiveLayout().Columns = oldCols;
 		} else if ($trg.is('#layoutRows')) {
 			const rows = Number($trg.val());
-			//const oldRows = getActiveLayout().Rows;
 			getActiveLayout().Rows = rows;
 			updateConfigLayout();
-			//getActiveLayout().Rows = oldRows;
 		}
 	});
 
@@ -438,10 +437,24 @@ $(document).ready(function() {
 	});
 
 	$(document).keyup(function(e) {
+		const $trg = $(e.target);
 		if (e.key === "Escape") {
 			$('body').removeClass('fullscreen');
 			document.exitFullscreen();
-	   }
+	   } else if ($trg.is('#thumbinput')) {
+			const $sources = $('#thumbCont').children();
+			const search = $trg.val().toLowerCase();
+			$sources.each(function(i, source) {
+				const $source = $(source);
+				const name = $source.attr('data-name').toLowerCase();
+				if (name.includes(search) || search.includes(name)) {
+					$source.removeClass('d-none');
+				} else {
+					$source.addClass('d-none');
+				}
+			});
+			console.log($trg.val());
+		}
    	});
 
 	setInterval(() => {
@@ -600,7 +613,7 @@ $(document).ready(function() {
 				break;
 			}
 			case 'select': {
-				let txt = `<select class="btn btn-outline-light" name="${$td.data('key')}">`;
+				let txt = `<select class="form-control form-select" name="${$td.data('key')}">`;
 				if ($td.data('options')) {
 					const options = $td.data('options').split(',');
 					options.forEach(option => {
@@ -1202,7 +1215,11 @@ function closePlayer($element) {
 		const title = $title.data('title');
 		$title.html(title);
 		$title.data('id', '');
-		OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
+		if ($element.hasClass('ovenplayer')) {
+			OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
+		} else {
+			
+		}
 		$element.remove();
 		const pip = Number($cont.attr('data-pip'));
 		mapping[pip] = 0;
@@ -1269,10 +1286,11 @@ function renderStreams() {
 }
 
 function buildThumbnails() {
-	$aside = $('#tumbList');
-	$aside.html('');
+	const $aside = $('#thumbList');
+	const $thumbCont = $('#thumbCont');
+	$thumbCont.html('');
 	encoders.forEach(encoder => {
-		$aside.append(`<div class="card text-white mb-1 sourceSelect"
+		$thumbCont.append(`<div class="card text-white mb-1 sourceSelect"
 		id="player-${encoder.Name.replace(/ /g,'-')}-cont"
 		data-id="${encoder.ID}"
 		data-url="${encoder.URL}"
@@ -1287,6 +1305,14 @@ function buildThumbnails() {
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 		</div>`);
 	});
+	$("#thumbSearch").remove();
+	if (allowSearch && encoders.length > 4 && layout != 'thumbnail') {
+		$aside.prepend(`<div id="thumbsearch" class="text-white mb-1 input-group position-sticky top-0 z-1" data-bs-theme="dark" style="">
+			<input id="thumbinput" class="form-control form-control-sm" type="text" placeholder="Search">
+			<button id="thumbclear" class="btn btn-secondary btn-sm">⌫</button>
+		</div>`);
+		$('.sourceSelect').removeClass('d-none');
+	}
 }
 
 function loadPips() {

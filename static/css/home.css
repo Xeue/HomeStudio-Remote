@@ -114,9 +114,6 @@ nav.drag {
   overflow: hidden;
   background-color: rgb(49, 61, 72);
   border: solid 2px rgb(49, 61, 72);
-  max-width: 300px;
-  min-width: 120px;
-  width: 15vw;
   opacity: 1;
   transition: 0.3s;
 }
@@ -140,9 +137,12 @@ nav.drag {
   outline: rgba(25, 117, 234, 0.67) solid 3px;
 }
 
-#tumbList {
+#thumbList {
   padding-left: .25rem !important;
   transition: 0.3s;
+  max-width: 300px;
+  min-width: 120px;
+  width: 15vw;
 }
 
 .triple #camThree {
@@ -229,7 +229,7 @@ nav.drag {
       opacity: 0;
   }
   
-  #tumbList {
+  #thumbList {
       padding-left: 0rem !important;
   }
   
@@ -240,7 +240,7 @@ nav.drag {
       opacity: 1;
   }
   
-  main:has(.selectedPlayer) aside#tumbList {
+  main:has(.selectedPlayer) aside#thumbList {
       padding-left: 0.25rem !important;
   }
 

@@ -70,6 +70,7 @@ let configLoaded = false;
 		config.require('systemName', [], 'What is the name of the system/job');
 		config.require('defaultLayout', {'thumnail': 'Thumnails Only', 'basic':'Basic Presets','advanced': 'Advanced With Editor'}, 'What should the default view be when a user connects');
 		config.require('allowLowres', {true: 'Yes', false: 'No'}, 'Generate lowres proxys for small pips');
+		config.require('allowSearch', {true: 'Yes', false: 'No'}, 'Enable search for long thumbnail lists');
 		config.require('reconnectTimeoutSeconds', [], 'How long should a stream wait before trying to reconnect in the GUI');
 		config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
 		config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save Logs to local file');
@@ -86,6 +87,7 @@ let configLoaded = false;
 		config.default('homestudioKey', '');
 		config.default('defaultLayout', 'basic');
 		config.default('allowLowres', true);
+		config.default('allowSearch', true);
 		config.default('createLogFile', true);
 		config.default('debugLineNum', false);
 		config.default('printPings', false);
@@ -411,7 +413,8 @@ function expressRoutes(expressApp) {
 		host: config.get('host'),
 		dockerCommand: dockerCommand,
 		reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
-		allowLowres: config.get('allowLowres')
+		allowLowres: config.get('allowLowres'),
+		allowSearch: config.get('allowSearch')
 	}}
 
 	expressApp.get('/',  (req, res) =>  {
