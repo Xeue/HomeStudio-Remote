@@ -5,8 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron .",
-    "build": "electron-builder --win"
+    "start": "node server.js"
   },
   "build": {
     "appId": "com.xeue.homestudio",
@@ -44,16 +43,11 @@
   "dependencies": {
     "auto-launch": "^5.0.6",
     "ejs": "^3.1.9",
-    "ejs-electron": "^2.1.1",
     "express": "^4.18.2",
     "node-fetch": "^2.6.7",
-    "xeue-config": "^2.1.0",
-    "xeue-logs": "^2.0.0",
+    "xeue-config": "^2.2.0",
+    "xeue-logs": "^2.1.0",
     "xeue-shell": "^1.2.0",
     "xeue-webserver": "^2.0.0"
-  },
-  "devDependencies": {
-    "electron": "^26.1.0",
-    "electron-builder": "^24.6.3"
   }
 }

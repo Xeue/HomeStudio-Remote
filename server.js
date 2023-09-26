@@ -7,13 +7,10 @@ const {Config} = require('xeue-config');
 const {Server} = require('xeue-webserver');
 const {version} = require('./package.json');
 const {Shell} = require('xeue-shell');
-const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
-const AutoLaunch = require('auto-launch');
 const fetch = require('node-fetch');
-const ejse = require('ejs-electron')
 
 const __main = path.resolve(__dirname);
-const __data = path.resolve(app.getPath('documents'));
+const __data = path.resolve(__dirname);
 const __static = path.resolve(__dirname+"/static");
 
 
@@ -35,24 +32,13 @@ const webServer = new Server(
 	doMessage
 );
 
-ejse.data('static',  __static);
-
 const omeVersion = "dev";
-const dockerConfigPath = `${path.dirname(app.getPath('exe'))}/ome/`;
-const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9998:9998 -p 9999:9999/udp -p 9000:9000 -p 8081:8081 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${dockerConfigPath}:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:${omeVersion}`
-
-
-let isQuiting = false;
-let mainWindow = null;
-let configLoaded = false;
+const dockerConfigPath = `${__static}/ome/`;
+const dockerCommand = `docker run --name ome -d -e OME_HOST_IP=* --restart always -p 1935:1935 -p 9998:9998 -p 9999:9999/udp -p 9000:9000 -p 8081:8081 -p 3333:3333 -p 3478:3478 -p 10000-10009:10000-10009/udp -p 20080:20081 -v ${dockerConfigPath}:/opt/ovenmediaengine/bin/origin_conf airensoft/ovenmediaengine:${omeVersion}`;
 
 /* Start App */
 
 (async () => {
-
-	await app.whenReady();
-	await setUpApp();
-	await createWindow();
 
 	{ /* Config */
 		logger.printHeader('HomeStudio');
@@ -94,13 +80,13 @@ let configLoaded = false;
 		config.default('advancedConfig', false);
 		config.default('devMode', false);
 		config.default('homestudioKey', '');
-		config.default('omeType', 'docker');
+		config.default('omeType', 'none');
 		config.default('host', 'localhost');
 		config.default('reconnectTimeoutSeconds', 4);
 
 
 		if (!await config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
-			await config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData', 'config.conf'), configQuestion, configDone);
+			await config.fromCLI(path.join(__data, 'HomeStudioData', 'config.conf'), 10);
 		}
 
 		if (config.get('loggingLevel') == 'D' || config.get('loggingLevel') == 'A') {
@@ -144,7 +130,6 @@ let configLoaded = false;
 	logger.log(`${config.get('systemName')} can be accessed at http://${config.get('host')}:${config.get('port')}`, ['H', 'SERVER', logger.g]);
 
 	webServer.start(config.get('port'));
-	mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
 	const Decoders = decoders()
 	for (let index = 0; index < Decoders.length; index++) {
 		const decoder = Decoders[index];
@@ -157,169 +142,8 @@ let configLoaded = false;
 });
 
 
-/* Electron */
-
-
-async function setUpApp() {
-	const tray = new Tray(path.join(__static, 'img/icon/icon-96x96.png'));
-	tray.setContextMenu(Menu.buildFromTemplate([
-		{
-			label: 'Show App', click: function () {
-				mainWindow.show();
-			}
-		},
-		{
-			label: 'Exit', click: function () {
-				isQuiting = true;
-				app.quit();
-			}
-		}
-	]));
-
-	ipcMain.on('window', (event, message) => {
-		switch (message) {
-		case 'exit':
-			app.quit();
-			break;
-		case 'minimise':
-			mainWindow.hide();
-			break;
-		default:
-			break;
-		}
-	});
-
-	ipcMain.on('config', (event, message) => {
-		switch (message) {
-		case 'start':
-			config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData','config.conf'), configQuestion, configDone);
-			break;
-		case 'stop':
-			logger.log('Not implemeneted yet: Cancle config change');
-			break;
-		case 'show':
-			config.print();
-			break;
-		default:
-			break;
-		}
-	});
-
-	const autoLaunch = new AutoLaunch({
-		name: 'Home Studio',
-		isHidden: true,
-	});
-	autoLaunch.isEnabled().then(isEnabled => {
-		if (!isEnabled) autoLaunch.enable();
-	});
-
-	app.on('before-quit', function () {
-		isQuiting = true;
-	});
-
-	app.on('activate', async () => {
-		if (BrowserWindow.getAllWindows().length === 0) createWindow();
-	});
-
-	logger.on('logSend', message => {
-		if (!isQuiting) mainWindow.webContents.send('log', message);
-	});
-}
-
-async function createWindow() {
-	mainWindow = new BrowserWindow({
-		width: 1440,
-		height: 720,
-		autoHideMenuBar: true,
-		webPreferences: {
-			contextIsolation: true,
-			preload: path.resolve(__main, 'preload.js')
-		},
-		icon: path.join(__static, 'img/icon/icon-512x512.png'),
-		show: false,
-		frame: false,
-		titleBarStyle: 'hidden',
-		titleBarOverlay: {
-			color: '#313d48',
-			symbolColor: '#ffffff',
-			height: 56
-		}
-	});
-
-	if (!app.commandLine.hasSwitch('hidden')) {
-		mainWindow.show();
-	} else {
-		mainWindow.hide();
-	}
-
-	mainWindow.on('close', function (event) {
-		if (!isQuiting) {
-			event.preventDefault();
-			mainWindow.webContents.send('requestExit');
-			event.returnValue = false;
-		}
-	});
-
-	mainWindow.on('minimize', function (event) {
-		event.preventDefault();
-		mainWindow.hide();
-	});
-
-	mainWindow.loadURL('file://' + __main + '/views/app.ejs');
-
-	await new Promise(resolve => {
-		ipcMain.on('ready', (event, ready) => {
-			if (configLoaded) {
-				mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
-			}
-			resolve();
-		});
-	});
-}
-
 /* Config Functions */
 
-
-async function configQuestion(question, current, options) {
-	mainWindow.webContents.send('configQuestion', JSON.stringify({
-		'question': question,
-		'current': current,
-		'options': options
-	}));
-	const awaitMessage = new Promise (resolve => {
-		ipcMain.once('configMessage', (event, value) => {
-			if (value == 'true') value = true;
-			if (value == 'false') value = false;
-			const newVal = parseInt(value);
-			if (!isNaN(newVal) && (value.match(/./g) || []).length < 2) value = newVal;
-			resolve(value);
-		});
-	});
-	return awaitMessage;
-}
-
-async function configDone() {
-	mainWindow.webContents.send('configDone', true);
-	logger.setConf({
-		'createLogFile': config.get('createLogFile'),
-		'LogsFileName': 'ArgosLogging',
-		'configLocation': path.join(app.getPath('documents'), 'ArgosData'),
-		'loggingLevel': config.get('loggingLevel'),
-		'debugLineNum': config.get('debugLineNum'),
-	});
-	if (configLoaded) mainWindow.webContents.send('loaded', `http://localhost:${config.get('port')}/app`);
-	if (config.get('localDataBase')) {
-		SQL = new SQLSession(
-			config.get('dbHost'),
-			config.get('dbPort'),
-			config.get('dbUser'),
-			config.get('dbPass'),
-			config.get('dbName'),
-			Logs
-		);
-		await SQL.init(tables);
-	}
-}
 
 async function startDocker() {
 	const shell = new Shell(logger, 'DOCKER', 'D', 'powershell.exe');
