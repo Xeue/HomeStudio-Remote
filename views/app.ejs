@@ -9,11 +9,18 @@
         <title>Home Studio</title>
         <link id="favicon_48" rel="icon" href="<%-static%>/img/icon/icon.svg" sizes="256x256">
     </head>
-    <body class="bg-dark" id="body">
-        <iframe id="frame"></iframe>
+    <body class="<%-background%>" id="body">
         <main id="logsCont">
             <div id="logs"></div>
+            <nav class="drag navbar navbar-expand-lg navbar-dark bg-title px-2 m-0">
+                <a class="navbar-brand" href="#">
+                    <img src="../static/img/icon/icon.svg" class="d-inline-block align-top" alt="" width="30" height="30">
+                    HomeStudio Remote
+                </a>
+            </nav>
         </main>
+        
+        <iframe id="frame"></iframe>
 
         <div class="modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" id="config">
             <div class="modal-dialog modal-dialog-centered">

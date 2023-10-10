@@ -10,7 +10,10 @@ const {Shell} = require('xeue-shell');
 const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
 const AutoLaunch = require('auto-launch');
 const fetch = require('node-fetch');
-const ejse = require('ejs-electron')
+const ejse = require('ejs-electron');
+const {MicaBrowserWindow, IS_WINDOWS_11} = require('mica-electron');
+
+const background = IS_WINDOWS_11 ? 'micaActive' : 'bg-dark';
 
 const __main = path.resolve(__dirname);
 const __data = path.resolve(app.getPath('documents'));
@@ -36,6 +39,7 @@ const webServer = new Server(
 );
 
 ejse.data('static',  __static);
+ejse.data('background',  background);
 
 const omeVersion = "dev";
 const dockerConfigPath = `${path.dirname(app.getPath('exe'))}/ome/`;
@@ -227,7 +231,7 @@ async function setUpApp() {
 }
 
 async function createWindow() {
-	mainWindow = new BrowserWindow({
+	const windowOptions = {
 		width: 1440,
 		height: 720,
 		autoHideMenuBar: true,
@@ -244,7 +248,15 @@ async function createWindow() {
 			symbolColor: '#ffffff',
 			height: 56
 		}
-	});
+	};
+
+	if (IS_WINDOWS_11) {
+		mainWindow = new MicaBrowserWindow(windowOptions);
+		mainWindow.setDarkTheme();
+		mainWindow.setMicaEffect();
+	} else {
+		mainWindow = new BrowserWindow(windowOptions);
+	}
 
 	if (!app.commandLine.hasSwitch('hidden')) {
 		mainWindow.show();
@@ -414,7 +426,8 @@ function expressRoutes(expressApp) {
 		dockerCommand: dockerCommand,
 		reconnectTimeoutSeconds: config.get('reconnectTimeoutSeconds'),
 		allowLowres: config.get('allowLowres'),
-		allowSearch: config.get('allowSearch')
+		allowSearch: config.get('allowSearch'),
+		background: background
 	}}
 
 	expressApp.get('/',  (req, res) =>  {

@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	
 		const $log = `<div class='log'>${output}</div>`;
-		Logs.innerHTML += $log;
+		Logs.innerHTML = $log + Logs.innerHTML;
 	});
 	
 	window.electronAPI.requestExit(() => {

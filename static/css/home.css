@@ -116,6 +116,9 @@ nav.drag {
   border: solid 2px rgb(49, 61, 72);
   opacity: 1;
   transition: 0.3s;
+  max-width: 300px;
+  min-width: 120px;
+  width: 15vw;
 }
 
 .sourceSelect * {
@@ -140,9 +143,6 @@ nav.drag {
 #thumbList {
   padding-left: .25rem !important;
   transition: 0.3s;
-  max-width: 300px;
-  min-width: 120px;
-  width: 15vw;
 }
 
 .triple #camThree {
@@ -529,6 +529,9 @@ nav.drag {
   display: none !important;
 }
 
+body.micaActive {
+  background: transparent !important;
+}
 
 #layoutGridCont.resizeShadow::after {
   content: "";

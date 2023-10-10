@@ -172,14 +172,25 @@ body {
  #logsCont {
 	display: flex;
 	flex-direction: column-reverse;
-	overflow: auto;
 	height: 100%;
  }
  
- #logs {
+#logs {
 	font-family: Ubuntu Mono;
 	margin-bottom: auto;
 	line-height: normal;
+	overflow: auto;
+	display: flex;
+	flex-direction: column-reverse;
+}
+
+ body.micaActive {
+	background: transparent !important;
+ }
+ 
+ .bg-title {
+	background-color: #313d48;
+	app-region: drag;
  }
  
  @font-face {
