@@ -56,23 +56,18 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 	
 	window.electronAPI.log((event, log) => {
-		const Logs = document.getElementById('logs');
-
+		const _logs = document.getElementById('logs');
 		const cols = [31,32,33,34,35,36,37];
 		const specials = [1,2];
 		const reset = 0;
-		let currentCul = 37;
+		let currentCul = getClass(log.textColour);
 		let currnetSpec = 1;
-	
-		let logArr = log.split('[');
-	
-		let output = '';
-	
-		for (let index = 0; index < logArr.length; index++) {
-			const element = logArr[index];
+		let output = `<span class="logTimestamp">[${log.timeString}]</span><span class="logLevel ${getClass(log.levelColour)}">[${log.level}] </span><span class="${getClass(log.colour)} logCatagory">${log.catagory}${log.seperator} </span>`;
+		let first = true;
+		const logArr = log.message.split('\x1b[');
+		logArr.forEach((element, index) => {
 			const num = parseInt(element.substr(0, element.indexOf('m')));
-			const text = element.substring(element.indexOf('m') + 1);
-	
+			const text = index==0 ? element : element.substring(element.indexOf('m') + 1);
 			if (cols.includes(num)) {
 				currentCul = num;
 			} else if (specials.includes(num)) {
@@ -81,14 +76,17 @@ document.addEventListener('DOMContentLoaded', () => {
 				currentCul = 37;
 				currnetSpec = 1;
 			}
+			output += `<span class="${getClass(currentCul)} ${getClass(currnetSpec)}">${text}</span>`;
+		})
+		output += `<span class="purpleLog logLinenum"> ${log.lineNumString}</span>`;
 	
-			const colour = getClass(currentCul);
-			const special = getClass(currnetSpec);
-			output += `<span class="${colour} ${special}">${text}</span>`;
+		const _log = `<div class='log' data-level="${log.level}">${output}</div>`;
+		_logs.innerHTML = _log + _logs.innerHTML;
+		const maxLogs = 499;
+		_logs.childElementCount
+		if (_logs.childElementCount > maxLogs) {
+			_logs.children[maxLogs+1].remove();
 		}
-	
-		const $log = `<div class='log'>${output}</div>`;
-		Logs.innerHTML = $log + Logs.innerHTML;
 	});
 	
 	window.electronAPI.requestExit(() => {
@@ -164,35 +162,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function getClass(num) {
-	let value;
-	switch (num) {
-	case 31:
-		value = 'redLog';
-		break;
-	case 32:
-		value = 'greenLog';
-		break;
-	case 33:
-		value = 'yellowLog';
-		break;
-	case 34:
-		value = 'blueLog';
-		break;
-	case 35:
-		value = 'purpleLog';
-		break;
-	case 36:
-		value = 'cyanLog';
-		break;
-	case 37:
-		value = 'whiteLog';
-		break;
-	case 2:
-		value = 'dimLog';
-		break;
-	case 1:
-		value = 'brightLog';
-		break;
+	if (typeof num == 'string') {
+		num = parseInt(num.substring(num.indexOf('m')-2, num.indexOf('m')));
 	}
-	return value;
+	if (num == 31) return 'redLog';
+	if (num == 32) return 'greenLog';
+	if (num == 33) return 'yellowLog';
+	if (num == 34) return 'blueLog';
+	if (num == 35) return 'purpleLog';
+	if (num == 36) return 'cyanLog';
+	if (num == 37) return 'whiteLog';
+	if (num == 2) return 'dimLog';
+	if (num == 1) return 'brightLog';
+	return 'whiteLog';
 }
+
+
+
+function on(eventNames, selectors, callback) {
+	if (!Array.isArray(selectors)) selectors = [selectors];
+	if (!Array.isArray(eventNames)) eventNames = [eventNames];
+	selectors.forEach(selector => {
+		eventNames.forEach(eventName => {
+			if (selector.nodeType) {
+				selector.addEventListener(eventName, event => {callback(event.target)});
+			} else {
+				document.addEventListener(eventName, event => {
+					if (event.target.matches(selector)) callback(event.target);
+				});
+			};
+		});
+	});
+};

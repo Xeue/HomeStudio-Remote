@@ -63,8 +63,6 @@ data-col-end="<%-pip.colEnd%>"
 function socketDoOpen(socket) {
 	console.log('Registering as client');
 	socket.send({'command':'register'});
-	let to = new Date().getTime()/1000;
-	let from = to - 7200;
 }
 
 function socketDoMessage(header, payload) {
@@ -457,12 +455,138 @@ $(document).ready(function() {
 		}
    	});
 
-	setInterval(() => {
+	/*setInterval(() => {
 		for (thumb of document.getElementsByClassName('thumbnail')) {
 			if (prod) thumb.src = thumb.dataset.src + "?" + new Date().getTime();
 		}
-	}, 1000)
+	}, 1000)*/
+
+	const signalingProtocol = window.location.protocol.startsWith("https") ? "wss" : "ws";
+	const gstWebRTCConfig = {
+		meta: { name: `WebClient-${Date.now()}` },
+		//signalingServerUrl: `${signalingProtocol}://${window.location.host}/webrtc`,
+		//signalingServerUrl: `wss://localhost:9090/webrtc`,
+		signalingServerUrl: `ws://127.0.0.1:8443`
+	};
+	const api = new GstWebRTCAPI(gstWebRTCConfig);
+	initRemoteStreams(api);
 });
+
+
+
+
+
+function initRemoteStreams(api) {
+	const remoteStreamsElement = document.getElementById("thumbCont");
+
+	const listener = {
+	  producerAdded: function(producer) {
+		const producerId = producer.id
+		if (!document.getElementById(producerId)) {
+		  remoteStreamsElement.insertAdjacentHTML("beforeend",
+		  `<div class="card text-white mb-1 sourceSelect"
+			id="player-${producerId}-cont"
+			data-id="${producerId}"
+			data-url=""
+			data-name="${producer.meta.name || producerId}"
+			data-type="webrtc">
+			<section class="playerTitle">
+				<h5 class="card-title feed-title" data-id="${producerId}">${producer.meta.name || producerId}</h5>
+			</section>
+			<img class="thumbnail card-img-top"
+				src="thumbnails/${producer.meta.name}_thumb_0.jpeg"
+				data-src="thumbnails/${producer.meta.name}_thumb_0.jpeg"
+				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
+			<video>
+		</div>`);
+
+		
+
+		  const entryElement = document.getElementById(`player-${producerId}-cont`);
+		  const videoElement = entryElement.getElementsByTagName("video")[0];
+
+		  videoElement.addEventListener("playing", () => {
+			if (entryElement.classList.contains("has-session")) {
+			  entryElement.classList.add("streaming");
+			}
+		  });
+
+		  entryElement.addEventListener("click", (event) => {
+			event.preventDefault();
+			if (!event.target.classList.contains("button")) {
+			  //return;
+			}
+
+			if (entryElement._consumerSession) {
+			  entryElement._consumerSession.close();
+			} else {
+			  const session = api.createConsumerSession(producerId);
+			  if (session) {
+				entryElement._consumerSession = session;
+
+				session.addEventListener("error", (event) => {
+				  if (entryElement._consumerSession === session) {
+					console.error(event.message, event.error);
+				  }
+				});
+
+				session.addEventListener("closed", () => {
+				  if (entryElement._consumerSession === session) {
+					videoElement.pause();
+					videoElement.srcObject = null;
+					entryElement.classList.remove("has-session", "streaming", "has-remote-control");
+					delete entryElement._consumerSession;
+				  }
+				});
+
+				session.addEventListener("streamsChanged", () => {
+				  if (entryElement._consumerSession === session) {
+					const streams = session.streams;
+					if (streams.length > 0) {
+					  videoElement.srcObject = streams[0];
+					  videoElement.play().catch(() => {});
+					}
+				  }
+				});
+
+				session.addEventListener("remoteControllerChanged", () => {
+				  if (entryElement._consumerSession === session) {
+					const remoteController = session.remoteController;
+					if (remoteController) {
+					  entryElement.classList.add("has-remote-control");
+					  remoteController.attachVideoElement(videoElement);
+					} else {
+					  entryElement.classList.remove("has-remote-control");
+					}
+				  }
+				});
+
+				entryElement.classList.add("has-session");
+				session.connect();
+			  }
+			}
+		  });
+		}
+	  },
+
+	  producerRemoved: function(producer) {
+		const element = document.getElementById(`player-${producer.id}-cont`);
+		if (element) {
+		  if (element._consumerSession) {
+			element._consumerSession.close();
+		  }
+
+		  element.remove();
+		}
+	  }
+	};
+
+	api.registerProducersListener(listener);
+	for (const producer of api.getAvailableProducers()) {
+	  	listener.producerAdded(producer);
+	}
+}
+
 
 { // Config
 	function configRowDone($trg) {

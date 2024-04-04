@@ -204,3 +204,68 @@ body {
   #question {
     white-space: break-spaces;
   }
+
+
+  #logsFilter {
+	position: absolute;
+	bottom: 10px;
+	left: 10px;
+	background: #313d48;
+	border-radius: 0.2rem;
+	padding: 0.3rem 0.5rem;
+	gap: 0.3rem;
+	display: grid;
+	grid-template-columns: repeat(9, 1fr);
+	justify-items: center;
+	font-size: 9pt;
+	margin: 0;
+	color: white;
+ }
+ 
+ #logsFilter input[type="checkbox"] {
+	--size: 1rem;
+ }
+ 
+ .logLinenum,
+ .logLevel,
+ .logCatagory,
+ .logTimestamp {
+	display: none;
+ }
+ 
+ #logsCont:has(#level:checked) .logLevel {
+	display: inline;
+ }
+ 
+ #logsCont:has(#catagory:checked) .logCatagory {
+	display: inline;
+ }
+ 
+ #logsCont:has(#timestamp:checked) .logTimestamp {
+	display: inline;
+ }
+ 
+ #logsCont:has(#line:checked) .logLinenum {
+	display: inline;
+ }
+ 
+ 
+ #logsCont:has(#core:checked) .log[data-level="[•]"] {
+	display: inline;
+ }
+ 
+ #logsCont:has(#info:checked) .log[data-level="[I]"] {
+	display: inline;
+ }
+ 
+ #logsCont:has(#debug:checked) .log[data-level="[D]"] {
+	display: inline;
+ }
+ 
+ #logsCont:has(#warning:checked) .log[data-level="[W]"] {
+	display: inline;
+ }
+ 
+ #logsCont:has(#error:checked) .log[data-level="[E]"] {
+	display: inline;
+ }
