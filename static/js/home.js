@@ -6,20 +6,16 @@ const templates = {};
 const players = [];
 let mapping = [];
 let activeLayout = 1;
+let gstreamerApi;
 
 templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
     <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
 	<td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
-	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,Local Encoder,Homestudio SRT,Homestudio WebRTC"><%-devices[i].Type%></td>
+	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,SDI,SRT,Homestudio"><%-devices[i].Type%></td>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
-	<td data-type="readonly" data-key="Encoder" data-value="<%-devices[i].Encoder%>">
-		<% if (devices[i].Encoder !== undefined) { %>
-			Address: <%-devices[i].Encoder.split('?streamid=')[0]%>
-			<br />StreamID: <%-devices[i].Encoder.split('?streamid=')[1]%>
-			<br />Mode: Caller
-		<% } %>
-	</td>
+	<td data-type="text" data-key="OutPort" data-value="<%-devices[i].OutPort%>"><%-devices[i].OutPort%></td>
+	<td data-type="text" data-key="OutURL" data-value="<%-devices[i].OutURL%>"><%-devices[i].OutURL%></td>
     <td>
       <button type="button" class="btn btn-danger editConfig w-50">Edit</button>
       <button type="button" class="btn btn-danger deleteRow w-50">Delete</button>
@@ -67,72 +63,72 @@ function socketDoOpen(socket) {
 
 function socketDoMessage(header, payload) {
 	switch (payload.command) {
-	case 'data':
-		if (payload.system === currentSystem) {
-			switch (payload.data) {
-			case 'ping':
-				if (payload.replace) {
-					pingChart.data.datasets[0].data = payload.points;
-				} else {
-					const datePing = new Date(parseInt(payload.time));
-					const colour = payload.status == 1 ? '128, 255, 128' : '255, 64, 64';
-					pingChart.data.datasets[0].data[datePing] = payload.status;
-					pingChart.data.datasets[0].backgroundColor[0] = `rgba(${colour}, 0.2)`;
-					pingChart.data.datasets[0].borderColor[0] = `rgba(${colour}, 1)`;
+		case 'data':
+			if (payload.system === currentSystem) {
+				switch (payload.data) {
+					case 'ping':
+						if (payload.replace) {
+							pingChart.data.datasets[0].data = payload.points;
+						} else {
+							const datePing = new Date(parseInt(payload.time));
+							const colour = payload.status == 1 ? '128, 255, 128' : '255, 64, 64';
+							pingChart.data.datasets[0].data[datePing] = payload.status;
+							pingChart.data.datasets[0].backgroundColor[0] = `rgba(${colour}, 0.2)`;
+							pingChart.data.datasets[0].borderColor[0] = `rgba(${colour}, 1)`;
+						}
+						lastPing = Date.now();
+						pingChart.update();
+						break;
+					case 'boot':
+						if (payload.replace) {
+							bootChart.data.datasets[0].data = payload.points;
+						} else {
+							const dateBoot = new Date(parseInt(payload.time));
+							bootChart.data.datasets[0].data[dateBoot] = 1;
+						}
+						lastBoot = Date.now();
+						bootChart.update();
+						break;
+					case 'temps':
+						if (payload.replace) {
+							replaceTemps(payload.points);
+						} else {
+							addTemps(payload.points);
+						}
+						lastHot = Date.now();
+						break;
 				}
-				lastPing = Date.now();
-				pingChart.update();
-				break;
-			case 'boot':
-				if (payload.replace) {
-					bootChart.data.datasets[0].data = payload.points;
-				} else {
-					const dateBoot = new Date(parseInt(payload.time));
-					bootChart.data.datasets[0].data[dateBoot] = 1;
-				}
-				lastBoot = Date.now();
-				bootChart.update();
-				break;
-			case 'temps':
-				if (payload.replace) {
-					replaceTemps(payload.points);
-				} else {
-					addTemps(payload.points);
-				}
-				lastHot = Date.now();
-				break;
 			}
-		}
-		break;
-	case 'log':
-		switch (payload.type) {
-		case 'decoding':
-			$('#SRTPushStatus').html(payload.message);
 			break;
-		case 'pushStatus':
-			if (payload.message.message !== "OK") break;
-			$('#configDecoders tr').attr('class', '');
-			payload.message.response.forEach(decode => {
-				const $tr = $(`#configDecoders [data-id="${decode.id.replace('push_decoder_', '')}"`);
-				$tr.addClass(decode.state);
-			})
+		case 'log':
+			switch (payload.type) {
+				case 'decoding':
+					$('#SRTPushStatus').html(payload.message);
+					break;
+				case 'pushStatus':
+					if (payload.message.message !== "OK") break;
+					$('#configDecoders tr').attr('class', '');
+					payload.message.response.forEach(decode => {
+						const $tr = $(`#configDecoders [data-id="${decode.id.replace('push_decoder_', '')}"`);
+						$tr.addClass(decode.state);
+					})
+					break;
+				default:
+					break;
+			}
+			break;
+		case 'feeds':
+			payload.feeds.forEach(feed => {
+				$(`.feed-title[data-id="${feed.ID}"]`).html(feed.Name);
+				$(`.sourceSelect[data-id="${feed.ID}"]`).data('name', feed.Name);
+			});
+			break;
+		case 'layouts':
+			layouts = payload.layouts;
 			break;
 		default:
-			break;
-		}
-		break;
-	case 'feeds':
-		payload.feeds.forEach(feed => {
-			$(`.feed-title[data-id="${feed.ID}"]`).html(feed.Name);
-			$(`.sourceSelect[data-id="${feed.ID}"]`).data('name', feed.Name);
-		});
-		break;
-	case 'layouts':
-		layouts = payload.layouts;
-		break;
-	default:
-		console.log('Unknown WS message');
-		console.log(payload);
+			console.log('Unknown WS message');
+			console.log(payload);
 	}
 }
 
@@ -162,7 +158,7 @@ $(document).ready(function() {
 	if (layoutUnparsed !== undefined) {
 		setActiveLayout(JSON.parse(layoutUnparsed));
 	}
-
+	gstreamerApi
 	renderStreams();
 
 	$(document).click(function(e) {
@@ -319,30 +315,30 @@ $(document).ready(function() {
 				"Columns": 2,
 				"Rows": 2,
 				"Pips": {
-				  "1": {
-					"rowStart": 1,
-					"rowEnd": 1,
-					"colStart": 1,
-					"colEnd": 1
-				  },
-				  "2": {
-					"rowStart": 2,
-					"rowEnd": 2,
-					"colStart": 1,
-					"colEnd": 1
-				  },
-				  "3": {
-					"rowStart": 1,
-					"rowEnd": 1,
-					"colStart": 2,
-					"colEnd": 2
-				  },
-				  "4": {
-					"rowStart": 2,
-					"rowEnd": 2,
-					"colStart": 2,
-					"colEnd": 2
-				  }
+					"1": {
+						"rowStart": 1,
+						"rowEnd": 1,
+						"colStart": 1,
+						"colEnd": 1
+					},
+					"2": {
+						"rowStart": 2,
+						"rowEnd": 2,
+						"colStart": 1,
+						"colEnd": 1
+					},
+					"3": {
+						"rowStart": 1,
+						"rowEnd": 1,
+						"colStart": 2,
+						"colEnd": 2
+					},
+					"4": {
+						"rowStart": 2,
+						"rowEnd": 2,
+						"colStart": 2,
+						"colEnd": 2
+					}
 				},
 				"Mapping": {}
 			});
@@ -373,20 +369,7 @@ $(document).ready(function() {
 		if ($trg.is('#csvUpload')) {
 			$('.tableImport').attr('disabled',$trg.val()=='');
 		} else if ($trg.is('select[name="Type"]')) {
-			const newID = $trg.closest('tr').data('id');
-			const $encoder = $trg.parent().siblings('[data-key="Encoder"]').first();
-			const $urlTD = $trg.parent().siblings('[data-key="URL"]').first();
-			const $url = $urlTD.children().first();
-			if ($trg.val() == "Local Encoder") {
-				$encoder.html(`Address: ${host}:9999/app
-				<br />StreamID: srt://${host}:9999/app/feed${newID}
-				<br />Mode: Caller`);
-				$encoder.data('value', `${host}:9999/app?streamid=srt://${host}:9999/app/feed${newID}`);
-				$url.val(`ws://${host}:3333/app/feed${newID}`);
-				$urlTD.data('value', `ws://${host}:3333/app/feed${newID}`);
-			} else {
-				$encoder.html('');
-			}
+
 		} else if ($trg.is('#layoutCols')) {
 			const cols = Number($trg.val());
 			getActiveLayout().Columns = cols;
@@ -439,7 +422,7 @@ $(document).ready(function() {
 		if (e.key === "Escape") {
 			$('body').removeClass('fullscreen');
 			document.exitFullscreen();
-	   } else if ($trg.is('#thumbinput')) {
+		} else if ($trg.is('#thumbinput')) {
 			const $sources = $('#thumbCont').children();
 			const search = $trg.val().toLowerCase();
 			$sources.each(function(i, source) {
@@ -453,137 +436,46 @@ $(document).ready(function() {
 			});
 			console.log($trg.val());
 		}
-   	});
+	});
 
-	/*setInterval(() => {
-		for (thumb of document.getElementsByClassName('thumbnail')) {
-			if (prod) thumb.src = thumb.dataset.src + "?" + new Date().getTime();
+	setInterval(() => {
+		for (_thumb of document.getElementsByClassName('thumbnail')) {
+			if (_thumb.parentNode.getAttribute('data-type') == "Homestudio") continue;
+			if (prod) _thumb.src = _thumb.dataset.src + "?" + new Date().getTime();
 		}
-	}, 1000)*/
+	}, 5000)
 
 	const signalingProtocol = window.location.protocol.startsWith("https") ? "wss" : "ws";
 	const gstWebRTCConfig = {
 		meta: { name: `WebClient-${Date.now()}` },
-		//signalingServerUrl: `${signalingProtocol}://${window.location.host}/webrtc`,
-		//signalingServerUrl: `wss://localhost:9090/webrtc`,
-		signalingServerUrl: `ws://127.0.0.1:8443`
+		signalingServerUrl: `${signalingProtocol}://${window.location.host}:8443`
 	};
-	const api = new GstWebRTCAPI(gstWebRTCConfig);
-	initRemoteStreams(api);
+	gstreamerApi = new GstWebRTCAPI(gstWebRTCConfig);
+	initRemoteStreams();
 });
 
 
 
 
 
-function initRemoteStreams(api) {
-	const remoteStreamsElement = document.getElementById("thumbCont");
-
+function initRemoteStreams() {
 	const listener = {
-	  producerAdded: function(producer) {
-		const producerId = producer.id
-		if (!document.getElementById(producerId)) {
-		  remoteStreamsElement.insertAdjacentHTML("beforeend",
-		  `<div class="card text-white mb-1 sourceSelect"
-			id="player-${producerId}-cont"
-			data-id="${producerId}"
-			data-url=""
-			data-name="${producer.meta.name || producerId}"
-			data-type="webrtc">
-			<section class="playerTitle">
-				<h5 class="card-title feed-title" data-id="${producerId}">${producer.meta.name || producerId}</h5>
-			</section>
-			<img class="thumbnail card-img-top"
-				src="thumbnails/${producer.meta.name}_thumb_0.jpeg"
-				data-src="thumbnails/${producer.meta.name}_thumb_0.jpeg"
-				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
-			<video>
-		</div>`);
-
-		
-
-		  const entryElement = document.getElementById(`player-${producerId}-cont`);
-		  const videoElement = entryElement.getElementsByTagName("video")[0];
-
-		  videoElement.addEventListener("playing", () => {
-			if (entryElement.classList.contains("has-session")) {
-			  entryElement.classList.add("streaming");
-			}
-		  });
-
-		  entryElement.addEventListener("click", (event) => {
-			event.preventDefault();
-			if (!event.target.classList.contains("button")) {
-			  //return;
-			}
-
-			if (entryElement._consumerSession) {
-			  entryElement._consumerSession.close();
-			} else {
-			  const session = api.createConsumerSession(producerId);
-			  if (session) {
-				entryElement._consumerSession = session;
-
-				session.addEventListener("error", (event) => {
-				  if (entryElement._consumerSession === session) {
-					console.error(event.message, event.error);
-				  }
-				});
-
-				session.addEventListener("closed", () => {
-				  if (entryElement._consumerSession === session) {
-					videoElement.pause();
-					videoElement.srcObject = null;
-					entryElement.classList.remove("has-session", "streaming", "has-remote-control");
-					delete entryElement._consumerSession;
-				  }
-				});
-
-				session.addEventListener("streamsChanged", () => {
-				  if (entryElement._consumerSession === session) {
-					const streams = session.streams;
-					if (streams.length > 0) {
-					  videoElement.srcObject = streams[0];
-					  videoElement.play().catch(() => {});
-					}
-				  }
-				});
-
-				session.addEventListener("remoteControllerChanged", () => {
-				  if (entryElement._consumerSession === session) {
-					const remoteController = session.remoteController;
-					if (remoteController) {
-					  entryElement.classList.add("has-remote-control");
-					  remoteController.attachVideoElement(videoElement);
-					} else {
-					  entryElement.classList.remove("has-remote-control");
-					}
-				  }
-				});
-
-				entryElement.classList.add("has-session");
-				session.connect();
-			  }
-			}
-		  });
+		producerAdded: function (producer) {
+			const _thumb = document.querySelector(`.sourceSelect[data-id="${producer.meta.name}"]`);
+			_thumb.classList.add('text-bg-success');
+			_thumb.setAttribute('data-producer', producer.id);
+			const _player = document.querySelector(`.player-title[data-id="${producer.meta.name}"]`);
+			startGstPlayer(_player.parentElement.parentElement, producer.id);
+		},
+		producerRemoved: function (producer) {
+			const _thumb = document.querySelector(`.sourceSelect[data-id="${producer.meta.name}"]`);
+			_thumb.classList.remove('text-bg-success');
 		}
-	  },
-
-	  producerRemoved: function(producer) {
-		const element = document.getElementById(`player-${producer.id}-cont`);
-		if (element) {
-		  if (element._consumerSession) {
-			element._consumerSession.close();
-		  }
-
-		  element.remove();
-		}
-	  }
 	};
 
-	api.registerProducersListener(listener);
-	for (const producer of api.getAvailableProducers()) {
-	  	listener.producerAdded(producer);
+	gstreamerApi.registerProducersListener(listener);
+	for (const producer of gstreamerApi.getAvailableProducers()) {
+		listener.producerAdded(producer);
 	}
 }
 
@@ -596,25 +488,25 @@ function initRemoteStreams(api) {
 			let $td = $(this);
 			let value = $td.data('value');
 			switch ($td.data('type')) {
-			case 'text':
-				$td.html(value);
-				data[$td.data('key')] = value;
-				break;
-			case 'range':
-				$td.html(`${$td.data('from')} to ${$td.data('to')}`);
-				data[$td.data('key-from')] = parseInt($td.data('from'));
-				data[$td.data('key-to')] = parseInt($td.data('to'));
-				$td.removeClass('input-group');
-				break;
-			case 'select':
-				if (value == "") value = $td.children()[0].value
-				$td.html(value);
-				data[$td.data('key')] = value;
-				break;
-			case 'readonly':
-				data[$td.data('key')] = value;
-			default:
-				break;
+				case 'text':
+					$td.html(value);
+					data[$td.data('key')] = value;
+					break;
+				case 'range':
+					$td.html(`${$td.data('from')} to ${$td.data('to')}`);
+					data[$td.data('key-from')] = parseInt($td.data('from'));
+					data[$td.data('key-to')] = parseInt($td.data('to'));
+					$td.removeClass('input-group');
+					break;
+				case 'select':
+					if (value == "") value = $td.children()[0].value
+					$td.html(value);
+					data[$td.data('key')] = value;
+					break;
+				case 'readonly':
+					data[$td.data('key')] = value;
+				default:
+					break;
 			}
 			$trg.html('Edit');
 			$trg.addClass('editConfig');
@@ -628,7 +520,7 @@ function initRemoteStreams(api) {
 		editors[editor].set(current);
 		editors[editor].expandAll();
 	}
-	
+
 	function configRowAdd() {
 		const $tbody = $('.tab-pane.active table[data-editor]').find('tbody');
 		const $rows = $tbody.children();
@@ -650,20 +542,20 @@ function initRemoteStreams(api) {
 		const dummyData = [];
 		dummyData[0] = {};
 		switch (template) {
-		case 'encoder':
-			dummyData[0].Name = `Camera ${newID}`;
-			dummyData[0].ID = newID;
-			dummyData[0].Type = 'Select';
-			dummyData[0].URL = '';
-			break;
-		case 'decoder':
-			dummyData[0].Name = `Decoder ${newID}`;
-			dummyData[0].ID = newID;
-			dummyData[0].Feed = 'Select';
-			dummyData[0].URL = '';
-			break;
-		default:
-			break;
+			case 'encoder':
+				dummyData[0].Name = `Camera ${newID}`;
+				dummyData[0].ID = newID;
+				dummyData[0].Type = 'Select';
+				dummyData[0].URL = '';
+				break;
+			case 'decoder':
+				dummyData[0].Name = `Decoder ${newID}`;
+				dummyData[0].ID = newID;
+				dummyData[0].Feed = 'Select';
+				dummyData[0].URL = '';
+				break;
+			default:
+				break;
 		}
 		const $new = $(ejs.render(templates[template], {'devices': dummyData}));
 		$new.attr('data-index', index);
@@ -671,7 +563,7 @@ function initRemoteStreams(api) {
 		$tbody.append($new);
 		$new.find('.editConfig').trigger('click');
 	}
-	
+
 	function configSave() {
 		let promises = [];
 		for (const editor in editors) {
@@ -679,8 +571,8 @@ function initRemoteStreams(api) {
 				promises.push($.ajax(`${server}set${editor}`, {
 					data : JSON.stringify(editors[editor].get()),
 					contentType : 'application/json',
-					type : 'POST'}
-				));
+					type : 'POST'
+				}));
 			}
 		}
 		encoders = editors['encoders'].get();
@@ -690,7 +582,7 @@ function initRemoteStreams(api) {
 			alert('Saved');
 		});
 	}
-	
+
 	function configRowDelete($trg) {
 		const $row = $trg.closest('tr');
 		const $tbody = $trg.closest('tbody');
@@ -700,72 +592,72 @@ function initRemoteStreams(api) {
 		editors[editor].set(current);
 		editors[editor].expandAll();
 		$row.remove();
-		
+
 		$tbody.children().each(function(index) {
 			$(this).attr('data-index', index);
 		});
 	}
-	
+
 	function configRowEdit($trg) {
 		let $row = $trg.closest('tr');
 		$row.children().each(function() {
 			let $td = $(this);
 			switch ($td.data('type')) {
-			case 'text': {
-				let $txt = $(`<input type="text" class="form-control" value="${$td.data('value')}" name="${$td.data('key')}"></input>`);
-				$txt.change(function() {
-					$td.data('value', $txt.val());
-				});
-				$td.html('');
-				$td.append($txt);
-				break;
-			}
-			case 'range': {
-				let $from = $(`<input type="text" class="editRange form-control text-end" value="${$td.data('from')}" name="${$td.data('key-from')}"></input>`);
-				let $to = $(`<input type="text" class="editRange form-control" value="${$td.data('to')}" name="${$td.data('key-to')}"></input>`);
-				$from.change(function() {
-					$td.data('from', $from.val());
-				});
-				$to.change(function() {
-					$td.data('to', $to.val());
-				});
-				$td.html('');
-				$td.addClass('input-group');
-				$td.append($from);
-				$td.append('<span class="input-group-text">to</span>');
-				$td.append($to);
-				break;
-			}
-			case 'select': {
-				let txt = `<select class="form-control form-select" name="${$td.data('key')}">`;
-				if ($td.data('options')) {
-					const options = $td.data('options').split(',');
-					options.forEach(option => {
-						const selected = option == $td.data('value') ? 'selected' : '';
-						txt += `<option value="${option}" ${selected}>${option}</option>`;
+				case 'text': {
+					let $txt = $(`<input type="text" class="form-control" value="${$td.data('value')}" name="${$td.data('key')}"></input>`);
+					$txt.change(function() {
+						$td.data('value', $txt.val());
 					});
-				} else {
-					const variable = $td.data('variable');
-					window[variable].forEach(data => {
-						console.log(data);
-						const selected = 'feed'+data.ID == $td.data('value') ? 'selected' : '';
-						txt += `<option value="feed${data.ID}" ${selected}>${data.Name}</option>`;
-					});
+					$td.html('');
+					$td.append($txt);
+					break;
 				}
-				txt += '</select>';
-				const $txt = $(txt);
-				$txt.change(function() {
-					$td.data('value', $txt.val());
-				});
-				$td.html('');
-				$td.append($txt);
-				break;
-			}
-			case 'readonly': {
-				break;
-			}
-			default:
-				break;
+				case 'range': {
+					let $from = $(`<input type="text" class="editRange form-control text-end" value="${$td.data('from')}" name="${$td.data('key-from')}"></input>`);
+					let $to = $(`<input type="text" class="editRange form-control" value="${$td.data('to')}" name="${$td.data('key-to')}"></input>`);
+					$from.change(function() {
+						$td.data('from', $from.val());
+					});
+					$to.change(function() {
+						$td.data('to', $to.val());
+					});
+					$td.html('');
+					$td.addClass('input-group');
+					$td.append($from);
+					$td.append('<span class="input-group-text">to</span>');
+					$td.append($to);
+					break;
+				}
+				case 'select': {
+					let txt = `<select class="form-control form-select" name="${$td.data('key')}">`;
+					if ($td.data('options')) {
+						const options = $td.data('options').split(',');
+						options.forEach(option => {
+							const selected = option == $td.data('value') ? 'selected' : '';
+							txt += `<option value="${option}" ${selected}>${option}</option>`;
+						});
+					} else {
+						const variable = $td.data('variable');
+						window[variable].forEach(data => {
+							console.log(data);
+							const selected = 'feed'+data.ID == $td.data('value') ? 'selected' : '';
+							txt += `<option value="feed${data.ID}" ${selected}>${data.Name}</option>`;
+						});
+					}
+					txt += '</select>';
+					const $txt = $(txt);
+					$txt.change(function() {
+						$td.data('value', $txt.val());
+					});
+					$td.html('');
+					$td.append($txt);
+					break;
+				}
+				case 'readonly': {
+					break;
+				}
+				default:
+					break;
 			}
 			$trg.html('Done');
 			$trg.removeClass('editConfig');
@@ -800,8 +692,8 @@ function layoutSave() {
 	$.ajax(`${server}setlayouts`, {
 		data : JSON.stringify(layouts),
 		contentType : 'application/json',
-		type : 'POST'}
-	)
+		type : 'POST'
+	})
 }
 
 function doResize(e) {
@@ -821,7 +713,7 @@ function doResize(e) {
 	const height = $cont.height();
 	const rows = Number($cont.attr('data-rows'));
 	const newRowPos = Math.ceil((rows * (e.pageY - top))/height);
-	
+
 	if (newColPos > cols || newRowPos > rows || newColPos < 1 || newRowPos < 1) return;
 
 	const oldDims = {
@@ -858,7 +750,7 @@ function doResize(e) {
 		newDims.col.start = newColPos;
 		newDims.col.end = oldDims.col.end;
 	}
-	
+
 	if (newRowPos > oldDims.row.end) {
 		newDims.row.start = oldDims.row.start;
 		newDims.row.end = newRowPos;
@@ -872,7 +764,7 @@ function doResize(e) {
 		newDims.row.start = newRowPos;
 		newDims.row.end = oldDims.row.end;
 	}
-	
+
 	$resizing.attr('data-col-end', newDims.col.end);
 	$resizing.attr('data-col-start', newDims.col.start);
 	$resizing.attr('data-row-end', newDims.row.end);
@@ -955,7 +847,7 @@ function doResizeShadow(e) {
 	const height = $cont.height();
 	const rows = Number($cont.attr('data-rows'));
 	const newRowPos = Math.ceil((rows * (e.pageY - top))/height);
-	
+
 	if (newColPos > cols || newRowPos > rows || newColPos < 1 || newRowPos < 1) return;
 
 	const oldDims = {
@@ -992,7 +884,7 @@ function doResizeShadow(e) {
 		newDims.col.start = newColPos;
 		newDims.col.end = oldDims.col.end;
 	}
-	
+
 	if (newRowPos > oldDims.row.end) {
 		newDims.row.start = oldDims.row.start;
 		newDims.row.end = newRowPos;
@@ -1007,7 +899,7 @@ function doResizeShadow(e) {
 		newDims.row.end = oldDims.row.end;
 		newRow = true;
 	}
-	
+
 	$cont.attr('data-col-end', newDims.col.end);
 	$cont.attr('data-col-start', newDims.col.start);
 	$cont.attr('data-row-end', newDims.row.end);
@@ -1313,7 +1205,7 @@ function openPlayer($element) {
 				}
 			})
 			break;
-		case 'Homestudio SRT':
+		case 'Homestudio':
 			const options = {
 				container: `${streamName.replace(/ /g, '-')}-player`,
 				stream_url: streamURL + '?wmsAuthSign=' + homestudioKey,
@@ -1326,6 +1218,10 @@ function openPlayer($element) {
 				autoplay: true
 			};
 			SLDP.init(options);
+			break;
+		case 'SDI':
+		case 'SRT':
+			startGstPlayer($selectedCont[0], $element.attr('data-producer'));
 			break;
 		default:
 			break;
@@ -1342,7 +1238,7 @@ function closePlayer($element) {
 		if ($element.hasClass('ovenplayer')) {
 			OvenPlayer.getPlayerByContainerId($element.attr('id')).remove();
 		} else {
-			
+
 		}
 		$element.remove();
 		const pip = Number($cont.attr('data-pip'));
@@ -1424,14 +1320,14 @@ function buildThumbnails() {
 				<h5 class="card-title feed-title" data-id="${encoder.ID}">${encoder.Name}</h5>
 			</section>
 			<img class="thumbnail card-img-top"
-				src="${encoder.URL.replace('ws://', 'http://').replace('3333', '9998')}/thumb.jpg"
-				data-src="${encoder.URL.replace('ws://', 'http://').replace('3333', '9998')}/thumb.jpg"
+				src="thumbnails/${encoder.ID}_thumb.jpeg"
+				data-src="thumbnails/${encoder.ID}_thumb.jpeg"
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 		</div>`);
 	});
 	$("#thumbSearch").remove();
 	if (allowSearch && encoders.length > 4 && layout != 'thumbnail') {
-		$aside.prepend(`<div id="thumbsearch" class="text-white mb-1 input-group position-sticky top-0 z-1" data-bs-theme="dark" style="">
+		$aside.prepend(`<div id="thumbsearch" class="text-white mb-1 input-group z-1" data-bs-theme="dark" style="">
 			<input id="thumbinput" class="form-control form-control-sm" type="text" placeholder="Search">
 			<button id="thumbclear" class="btn btn-secondary btn-sm">⌫</button>
 		</div>`);
@@ -1440,7 +1336,7 @@ function buildThumbnails() {
 }
 
 function loadPips() {
-	const mappingUnparsed = Cookies.get('mapping');	
+	const mappingUnparsed = Cookies.get('mapping');
 	if (mappingUnparsed === undefined) return;
 	mapping = JSON.parse(mappingUnparsed);
 	$('.selectedPlayer').removeClass('selectedPlayer');
@@ -1499,14 +1395,76 @@ let beforeInstallPrompt = null;
 window.addEventListener("beforeinstallprompt", eventHandler, errorHandler);
 
 function eventHandler(event) {
-  beforeInstallPrompt = event;
-  document.getElementById("installBtn").classList.remove("d-none");
+	beforeInstallPrompt = event;
+	document.getElementById("installBtn").classList.remove("d-none");
 }
 
 function errorHandler(event) {
-  console.log("error: " + event);
+	console.log("error: " + event);
 }
 
 function install() {
-  if (beforeInstallPrompt) beforeInstallPrompt.prompt();
+	if (beforeInstallPrompt) beforeInstallPrompt.prompt();
+}
+
+
+function startGstPlayer(_selectedCont, producerId) {
+	const _video = document.createElement('video');
+	const _player = _selectedCont.querySelector('.player-cont');
+	_video.addEventListener("playing", () => {
+		if (_selectedCont.classList.contains("has-session")) {
+			_selectedCont.classList.add("streaming");
+		}
+	});
+	_player.innerHTML = '';
+	_player.appendChild(_video)
+	players.push(_video);
+	if (_selectedCont._consumerSession) {
+		_selectedCont._consumerSession.close();
+	}
+
+	const session = gstreamerApi.createConsumerSession(producerId);
+	if (session) {
+		_selectedCont._consumerSession = session;
+
+		session.addEventListener("error", (event) => {
+			if (_selectedCont._consumerSession === session) {
+				console.error(event.message, event.error);
+			}
+		});
+
+		session.addEventListener("closed", () => {
+			if (_selectedCont._consumerSession === session) {
+				_video.pause();
+				_video.srcObject = null;
+				_selectedCont.classList.remove("has-session", "streaming", "has-remote-control");
+				delete _selectedCont._consumerSession;
+			}
+		});
+
+		session.addEventListener("streamsChanged", () => {
+			if (_selectedCont._consumerSession === session) {
+				const streams = session.streams;
+				if (streams.length > 0) {
+					_video.srcObject = streams[0];
+					_video.play().catch(() => { });
+				}
+			}
+		});
+
+		session.addEventListener("remoteControllerChanged", () => {
+			if (_selectedCont._consumerSession === session) {
+				const remoteController = session.remoteController;
+				if (remoteController) {
+					_selectedCont.classList.add("has-remote-control");
+					remoteController.attachVideoElement(_video);
+				} else {
+					_selectedCont.classList.remove("has-remote-control");
+				}
+			}
+		});
+
+		_selectedCont.classList.add("has-session");
+		session.connect();
+	}
 }

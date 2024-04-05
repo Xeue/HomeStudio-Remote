@@ -13,6 +13,7 @@ const AutoLaunch = require('auto-launch');
 const fetch = require('node-fetch');
 const ejse = require('ejs-electron');
 const {MicaBrowserWindow, IS_WINDOWS_11} = require('mica-electron');
+const { pipeline } = require('stream');
 
 const background = IS_WINDOWS_11 ? 'micaActive' : 'bg-dark';
 
@@ -49,6 +50,7 @@ ejse.data('background',  background);
 let isQuiting = false;
 let mainWindow = null;
 let configLoaded = false;
+let pipelines = [];
 
 /* Start App */
 
@@ -155,6 +157,7 @@ process.on('uncaughtException', error => exitHandler(true, error));
 	}
 	startSignalling();
 	startPipelines();
+	startThumbWatch();
 	//setInterval(getPush, 10*1000);
 })().catch(error => {
 	console.log(error);
@@ -359,16 +362,8 @@ async function configDone() {
 /* Video */
 
 
-function sdiInput(inputPort, outputPort, name) {
-	const command = `webrtcsink name=ws meta="meta,name=${name}" decklinkvideosrc device-number=${inputPort} mode=1080p25 ! videoconvert ! tee name=t \
-	t. ! queue ! ws. \
-	t. ! queue ! videoconvert ! decklinkvideosink device-number=${outputPort} mode=1080p25 \
-	t. ! queue ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/thumbs/${name}_thumb_%d.jpeg`;
-	return new _Pipeline(Logs, command);
-}
-
-function newPipeline(input, outputs, name) {
-	let command = `webrtcsink name=ws meta="meta,name=${name}" `;
+function newPipeline(input, outputs, ID) {
+	let command = `webrtcsink name=ws meta="meta,name=${ID}" `;
 	switch (input.type) {
 		case 'SDI':
 			command += `decklinkvideosrc device-number=${input.connector} mode=${input.format} `
@@ -381,7 +376,7 @@ function newPipeline(input, outputs, name) {
 	}
 	command += `! videoconvert ! tee name=t \\\n`;
 	command += `t. ! queue ! ws. \\\n`;
-	command += `t. ! queue ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnails/${name}_thumb_%d.jpeg \\\n`;
+	command += `t. ! queue ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnailsRaw/${ID}_thumb_%d.jpeg \\\n`;
 	outputs.forEach(output => {
 		switch (output.type) {
 			case 'SDI':
@@ -399,22 +394,61 @@ function newPipeline(input, outputs, name) {
 
 
 function startPipelines() {
-	const input = {
-		'type':'SDI',
-		'connector': 0,
-		'format': '1080p25'
-	};
-	const outputs = [
-		{
-			'type': 'SDI',
-			'connector': 2,
+	encoders('SDI').forEach(encoder => {
+		const input = {
+			'type':'SDI',
+			'connector': encoder.URL,
 			'format': '1080p25'
+		};
+		const outputs = [];
+		if (encoder.OutPort) {
+			outputs.push({
+				'type': 'SDI',
+				'connector': encoder.OutPort,
+				'format': '1080p25'
+			})
 		}
-	]
-	const SDITest1 = newPipeline(input, outputs, 'SDI-1');
-	SDITest1.on('playing', ()=>Logs.log('SDI 1 Started'));
-	SDITest1.on('stdout', message => Logs.debug(message));
-	SDITest1.start();
+		if (encoder.OutURL) {
+			outputs.push({
+				'type': 'SRT',
+				'url': encoder.OutURL
+			})
+		}
+		Logs.object(outputs);
+		const SDI = newPipeline(input, outputs, String(encoder.ID));
+		pipelines.push(SDI);
+		SDI.on('playing', ()=>Logs.log(`${encoder.Name} is playing`));
+		SDI.on('stdout', message => Logs.debug(message));
+		SDI.on('stopped', ()=>pipelines.splice(pipelines.indexOf(SDI),1));
+		SDI.start();
+	})
+	encoders('SRT').forEach(encoder => {
+		const input = {
+			'type':'SRT',
+			'url': encoder.URL
+		};
+		const outputs = [];
+		if (encoder.OutPort) {
+			outputs.push({
+				'type': 'SDI',
+				'connector': encoder.OutPort,
+				'format': '1080p25'
+			})
+		}
+		if (encoder.OutURL) {
+			outputs.push({
+				'type': 'SRT',
+				'url': encoder.OutURL
+			})
+		}
+		Logs.object(outputs);
+		const SRT = newPipeline(input, outputs, String(encoder.ID));
+		pipelines.push(SRT);
+		SRT.on('playing', ()=>Logs.log(`${encoder.Name} is playing`));
+		SRT.on('stdout', message => Logs.debug(message));
+		SRT.on('stopped', ()=>pipelines.splice(pipelines.indexOf(SRT),1));
+		SRT.start();
+	})
 }
 
 function startSignalling() {
@@ -432,6 +466,20 @@ function startSignalling() {
 			else Logs.log(stdout, ['D', 'SIGNAL', Logs.c]);
 		});
 	}
+}
+
+function startThumbWatch() {
+	const thumbPath = './static/thumbnailsRaw';
+	fs.watch(thumbPath, (eventType, filename) => {
+		if (eventType != 'rename') return;
+		if (filename.split('.').length < 3) {
+			const oldPath = `${thumbPath}/${filename}`;
+			const newPath = `./static/thumbnails/${filename.split('_thumb_')[0]}_thumb.jpeg`;
+			fs.rename(oldPath, newPath, error => {
+				if (!error) Logs.info(`Successfully renamed '${filename}' - AKA moved!`)
+			})
+		}
+	})
 }
 
 function encoders(type) {
@@ -571,6 +619,8 @@ function expressRoutes(expressApp) {
 		});
 		writeData('Encoders', req.body);
 		res.send('Done');
+		pipelines.forEach(pipeline => pipeline.stop());
+		startPipelines();
 	});
 	expressApp.post('/setdecoders', (req, res) => {
 		Logs.log('Request to set decoders config data', 'D');
@@ -629,8 +679,9 @@ function loadData(file) {
 				'Name':'Camera 1',
 				'ID':1,
 				'Type':'Local Encoder',
-				'URL':'ws://IPAddress:3333/app/feed1',
-				'Encoder':'srt://IPAddress:9999/app?streamid=srt://IPAddress:9999/app/feed1'
+				'URL':'wss://IPAddress:3333/app/feed1',
+				'OutPort':1,
+				'OutURL':'srt://IPAddress:9000'
 			};
 			break;
 		case 'Decoders':

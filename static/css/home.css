@@ -221,6 +221,7 @@ nav.drag {
 }
 
 
+/*
 @supports(selector(:has(p))) {
   .sourceSelect {
       max-width: 0px;
@@ -251,6 +252,7 @@ nav.drag {
     opacity: 1;
   }
 }
+*/
 
 .op-message-container::before {
   content: "No camera feed currently connected";
@@ -280,7 +282,9 @@ nav.drag {
   display: none !important;
 }
 
-
+.player-cont video {
+  max-width: 100%;
+}
 
 
 
