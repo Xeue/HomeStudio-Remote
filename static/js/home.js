@@ -358,6 +358,24 @@ $(document).ready(function() {
 		} else if ($trg.is('#thumbclear')) {
 			$('.sourceSelect').removeClass('d-none');
 			$('#thumbinput').val('');
+		} else if ($trg.is('#dollsTab')) {
+			showDolls();
+		} else if ($trg.is('#trebmal_startRecord')) {
+			localConnection.send({'command':'trebmal','endpoint':'startRecord'});
+		} else if ($trg.is('#trebmal_stopRecord')) {
+			localConnection.send({'command':'trebmal','endpoint':'stopRecord'});
+		} else if ($trg.is('#trebmal_startPlay')) {
+			localConnection.send({'command':'trebmal','endpoint':'startPlay'});
+		} else if ($trg.is('#trebmal_stopPlay')) {
+			localConnection.send({'command':'trebmal','endpoint':'stopPlay'});
+		} else if ($trg.is('#trebmal_startRing1')) {
+			localConnection.send({'command':'trebmal','endpoint':'startRing1'});
+		} else if ($trg.is('#trebmal_stopRing1')) {
+			localConnection.send({'command':'trebmal','endpoint':'stopRing1'});
+		} else if ($trg.is('#trebmal_startRing2')) {
+			localConnection.send({'command':'trebmal','endpoint':'startRing2'});
+		} else if ($trg.is('#trebmal_stopRing2')) {
+			localConnection.send({'command':'trebmal','endpoint':'stopRing2'});
 		} else if (!$trg.hasClass('player-quad') && !$trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 		}
@@ -1074,6 +1092,7 @@ function updateConfigLayout() {
 };
 
 function choseWindows(number) {
+	hideDolls();
 	setActiveLayout(number);
 	const $one = $('#camOne');
 	const $two = $('#camTwo');
@@ -1272,6 +1291,16 @@ function renderEditorTab(devicesData, editor, template, element) {
 	editor.expandAll();
 	$(`#${element}`).html(ejs.render(template, {devices: devicesData}));
 	return editor;
+}
+
+function showDolls() {
+	$('#playerCont').addClass('d-none');
+	$('#dollsCont').removeClass('d-none');
+}
+
+function hideDolls() {
+	$('#playerCont').removeClass('d-none');
+	$('#dollsCont').addClass('d-none');
 }
 
 function download(filename, text) {

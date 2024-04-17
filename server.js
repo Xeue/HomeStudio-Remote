@@ -72,6 +72,7 @@ process.on('uncaughtException', error => exitHandler(true, error));
 		Config.require('port', [], 'What port shall the server use');
 		Config.require('portSSL', [], 'What port shall the server use for SSL');
 		Config.require('systemName', [], 'What is the name of the system/job');
+		Config.require('trebmalAddress', [], 'Address for Trebmal reverse playback audio');
 		Config.require('defaultLayout', {'thumnail': 'Thumnails Only', 'basic':'Basic Presets','advanced': 'Advanced With Editor'}, 'What should the default view be when a user connects');
 		Config.require('allowLowres', {true: 'Yes', false: 'No'}, 'Generate lowres proxys for small pips');
 		Config.require('allowSearch', {true: 'Yes', false: 'No'}, 'Enable search for long thumbnail lists');
@@ -88,6 +89,7 @@ process.on('uncaughtException', error => exitHandler(true, error));
 		Config.default('port', 8080);
 		Config.default('portSSL', 443);
 		Config.default('systemName', 'Home Studio');
+		Config.default('trebmalAddress', 'localhost:8081');
 		Config.default('loggingLevel', 'W');
 		Config.default('homestudioKey', '');
 		Config.default('defaultLayout', 'basic');
@@ -517,6 +519,7 @@ function expressRoutes(expressApp) {
 		reconnectTimeoutSeconds: Config.get('reconnectTimeoutSeconds'),
 		allowLowres: Config.get('allowLowres'),
 		allowSearch: Config.get('allowSearch'),
+		trebmalAddress: Config.get('trebmalAddress'),
 		background: background
 	}}
 
@@ -654,6 +657,10 @@ async function doMessage(msgObj, socket) {
 		break;
 	case 'register':
 		Logs.log('Client registered', 'A');
+		break;
+	case 'trebmal':
+		Logs.log(`Sending GET to http://${Config.get('trebmalAddress')}/${payload.endpoint}`);
+		fetch(`http://${Config.get('trebmalAddress')}/${payload.endpoint}`);
 		break;
 	default:
 		logObj('Unknown message', msgObj, 'W');

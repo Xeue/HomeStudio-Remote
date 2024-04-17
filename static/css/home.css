@@ -245,7 +245,7 @@ nav.drag {
       padding-left: 0.25rem !important;
   }
 
-  #appHome .sourceSelect {
+  .appHome .sourceSelect {
     max-width: 300px;
     min-width: 200px;
     width: 20vw;

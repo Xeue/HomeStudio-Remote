@@ -55,6 +55,7 @@
 				<div class="w-auto" id="broken"></div>
 			</div>
 		</div>
+        <div></div>
         <% switch (layout) {
             case 'basic' : %>
                 <div role="tablist">
@@ -73,6 +74,9 @@
                 thumbs
                 <% break;
         } %>
+        <div></div>
+        <button id="dollsTab" class="btn btn-secondary">Dolls House</button>
+        <div></div>
 
         <div class="d-flex gap-1">
             <% if (config) { %>
@@ -106,6 +110,7 @@
     <% if (config) { %>
         <%- include('modals/config.ejs'); %>
     <% } %>
+    <%- include('dollsHouse.ejs'); %>
 </body>
 
 </html>
