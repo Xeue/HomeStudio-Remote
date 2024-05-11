@@ -1,31 +1,26 @@
 /* eslint-disable no-unused-vars */
-const fs = require('fs');
-const express = require('express');
-const path = require('path');
-const _Logs = require('xeue-logs').Logs;
-const _Config = require('xeue-config').Config;
-const _Server = require('xeue-webserver').Server;
-const {version} = require('./package.json');
-const _Shell = require('xeue-shell').Shell;
-const _Pipeline = require('./pipeline.js').Pipeline;
-const {app, BrowserWindow, ipcMain, Tray, Menu} = require('electron');
-const AutoLaunch = require('auto-launch');
-const fetch = require('node-fetch');
-const ejse = require('ejs-electron');
-const {MicaBrowserWindow, IS_WINDOWS_11} = require('mica-electron');
-const { pipeline } = require('stream');
+import fs from 'fs';
+import path from 'path';
+import express from 'express';
+import {homedir} from 'os';
+import {Logs as _Logs} from 'xeue-logs';
+import {Config as _Config} from 'xeue-config';
+import {Server as _Server} from 'xeue-webserver';
+import {Shell as _Shell} from 'xeue-shell';
+import _Pipeline from './pipeline.js';
+import Package from './package.json' assert {type: "json"};
+import _TSL5 from 'tsl-umd-v5';
 
-const background = IS_WINDOWS_11 ? 'micaActive' : 'bg-dark';
-
-const __main = path.resolve(__dirname);
-const __data = path.resolve(app.getPath('documents'));
+const version = Package.version;
+const __dirname = path.resolve(path.dirname(decodeURI(new URL(import.meta.url).pathname))).replace('C:\\','');
+const __data = path.join(homedir(), 'Documents', 'HomeStudioData');
 const __static = path.resolve(__dirname+"/static");
 
-
+const UMD = new _TSL5();
 const Logs = new _Logs(
 	false,
 	'HomeStudioLogging',
-	path.join(__data, 'HomeStudioData'),
+	__data,
 	'D',
 	false
 )
@@ -43,320 +38,164 @@ const Server = new _Server(
 	fs.readFileSync(path.join(__dirname,'./cert/cert.pem'))
 );
 
-ejse.data('static',  __static);
-ejse.data('background',  background);
-
-
-let isQuiting = false;
-let mainWindow = null;
-let configLoaded = false;
 let pipelines = [];
 
 /* Start App */
 
+process.stdin.resume();
 ['exit','SIGINT','SIGUSR1','SIGUSR2'].forEach(type => process.on(type, exitHandler));
 process.on('uncaughtException', error => exitHandler(true, error));
 
-(async () => {
+{ /* Config */
+	Logs.printHeader('HomeStudio');
+	Config.require('host', [], 'What is the IP/host of this machine');
+	Config.require('port', [], 'What port shall the server use');
+	Config.require('portSSL', [], 'What port shall the server use for SSL');
+	Config.require('systemName', [], 'What is the name of the system/job');
+	Config.require('trebmalAddress', [], 'Address for Trebmal reverse playback audio');
+	Config.require('defaultLayout', {'thumnail': 'Thumnails Only', 'basic':'Basic Presets','advanced': 'Advanced With Editor'}, 'What should the default view be when a user connects');
+	Config.require('allowLowres', {true: 'Yes', false: 'No'}, 'Generate lowres proxys for small pips');
+	Config.require('allowSearch', {true: 'Yes', false: 'No'}, 'Enable search for long thumbnail lists');
+	Config.require('reconnectTimeoutSeconds', [], 'How long should a stream wait before trying to reconnect in the GUI');
+	Config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
+	Config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save Logs to local file');
+	Config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings');
+	{
+		Config.require('debugLineNum', {true: 'Yes', false: 'No'}, 'Print line numbers?', ['advancedConfig', true]);
+		Config.require('printPings', {true: 'Yes', false: 'No'}, 'Print pings?', ['advancedConfig', true]);
+		Config.require('devMode', {true: 'Yes', false: 'No'}, 'Dev mode - Disables connections to devices', ['advancedConfig', true]);
+	}
 
-	app.commandLine.appendSwitch('ignore-certificate-errors');
-	app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
-
-	await app.whenReady();
-	await setUpApp();
-	await createWindow();
-
-	{ /* Config */
-		Logs.printHeader('HomeStudio');
-		Config.require('host', [], 'What is the IP/host of this machine');
-		Config.require('port', [], 'What port shall the server use');
-		Config.require('portSSL', [], 'What port shall the server use for SSL');
-		Config.require('systemName', [], 'What is the name of the system/job');
-		Config.require('trebmalAddress', [], 'Address for Trebmal reverse playback audio');
-		Config.require('defaultLayout', {'thumnail': 'Thumnails Only', 'basic':'Basic Presets','advanced': 'Advanced With Editor'}, 'What should the default view be when a user connects');
-		Config.require('allowLowres', {true: 'Yes', false: 'No'}, 'Generate lowres proxys for small pips');
-		Config.require('allowSearch', {true: 'Yes', false: 'No'}, 'Enable search for long thumbnail lists');
-		Config.require('reconnectTimeoutSeconds', [], 'How long should a stream wait before trying to reconnect in the GUI');
-		Config.require('loggingLevel', {'A':'All', 'D':'Debug', 'W':'Warnings', 'E':'Errors'}, 'Set logging level:');
-		Config.require('createLogFile', {true: 'Yes', false: 'No'}, 'Save Logs to local file');
-		Config.require('advancedConfig', {true: 'Yes', false: 'No'}, 'Show advanced config settings');
-		{
-			Config.require('debugLineNum', {true: 'Yes', false: 'No'}, 'Print line numbers?', ['advancedConfig', true]);
-			Config.require('printPings', {true: 'Yes', false: 'No'}, 'Print pings?', ['advancedConfig', true]);
-			Config.require('devMode', {true: 'Yes', false: 'No'}, 'Dev mode - Disables connections to devices', ['advancedConfig', true]);
-		}
-
-		Config.default('port', 8080);
-		Config.default('portSSL', 443);
-		Config.default('systemName', 'Home Studio');
-		Config.default('trebmalAddress', 'localhost:8081');
-		Config.default('loggingLevel', 'W');
-		Config.default('homestudioKey', '');
-		Config.default('defaultLayout', 'basic');
-		Config.default('allowLowres', true);
-		Config.default('allowSearch', true);
-		Config.default('createLogFile', true);
-		Config.default('debugLineNum', false);
-		Config.default('printPings', false);
-		Config.default('advancedConfig', false);
-		Config.default('devMode', false);
-		Config.default('homestudioKey', '');
-		Config.default('host', 'localhost');
-		Config.default('reconnectTimeoutSeconds', 4);
+	Config.default('port', 8080);
+	Config.default('portSSL', 443);
+	Config.default('systemName', 'Home Studio');
+	Config.default('trebmalAddress', 'localhost:8081');
+	Config.default('loggingLevel', 'W');
+	Config.default('homestudioKey', '');
+	Config.default('defaultLayout', 'basic');
+	Config.default('allowLowres', true);
+	Config.default('allowSearch', true);
+	Config.default('createLogFile', true);
+	Config.default('debugLineNum', false);
+	Config.default('printPings', false);
+	Config.default('advancedConfig', false);
+	Config.default('devMode', false);
+	Config.default('homestudioKey', '');
+	Config.default('host', 'localhost');
+	Config.default('reconnectTimeoutSeconds', 4);
 
 
-		if (!await Config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
-			await Config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData', 'config.conf'), configQuestion, configDone);
-		}
+	if (!await Config.fromFile(path.join(__data, 'config.conf'))) {
+		await Config.fromCLI(path.join(__data, 'config.conf'));
+	}
 
-		if (Config.get('loggingLevel') == 'D' || Config.get('loggingLevel') == 'A') {
-			Config.set('debugLineNum', true);
-		}
-		
-		Logs.setConf({
-			createLogFile: Config.get('createLogFile'),
-			logsFileName: 'HomeStudioLogging',
-			configLocation: path.join(__data, 'HomeStudioData'),
-			loggingLevel: Config.get('loggingLevel'),
-			debugLineNum: Config.get('debugLineNum')
-		})
+	if (Config.get('loggingLevel') == 'D' || Config.get('loggingLevel') == 'A') {
+		Config.set('debugLineNum', true);
+	}
+	
+	Logs.setConf({
+		createLogFile: Config.get('createLogFile'),
+		logsFileName: 'HomeStudioLogging',
+		configLocation: __data,
+		loggingLevel: Config.get('loggingLevel'),
+		debugLineNum: Config.get('debugLineNum')
+	})
 
-		Logs.log('Running version: v'+version, ['H', 'SERVER', Logs.g]);
-		Logs.log(`Logging to: ${path.join(__data, 'HomeStudioData', 'Logs')}`, ['H', 'SERVER', Logs.g]);
-		Logs.log(`Config saved to: ${path.join(__data, 'HomeStudioData', 'config.conf')}`, ['H', 'SERVER', Logs.g]);
-		Config.print();
-		Config.userInput(async command => {
-			switch (command) {
-			case 'config':
-				await Config.fromCLI(path.join(__data, 'HomeStudioData', 'config.conf'));
-				if (Config.get('loggingLevel') == 'D' || Config.get('loggingLevel') == 'A') {
-					Config.set('debugLineNum', true);
-				}
-				Logs.setConf({
-					'createLogFile': Config.get('createLogFile'),
-					'LogsFileName': 'HomeStudioLogging',
-					'configLocation': path.join(__data, 'HomeStudioData'),
-					'loggingLevel': Config.get('loggingLevel'),
-					'debugLineNum': Config.get('debugLineNum')
-				});
-				return true;
+	Logs.log('Running version: v'+version, ['H', 'SERVER', Logs.g]);
+	Logs.log(`Logging to: ${path.join(__data, 'Logs')}`, ['H', 'SERVER', Logs.g]);
+	Logs.log(`Config saved to: ${path.join(__data, 'config.conf')}`, ['H', 'SERVER', Logs.g]);
+	Config.print();
+	Config.userInput(async command => {
+		switch (command) {
+		case 'config':
+			await Config.fromCLI(path.join(__data, 'config.conf'));
+			if (Config.get('loggingLevel') == 'D' || Config.get('loggingLevel') == 'A') {
+				Config.set('debugLineNum', true);
 			}
-		});
-		configLoaded = true;
-	}
+			Logs.setConf({
+				'createLogFile': Config.get('createLogFile'),
+				'LogsFileName': 'HomeStudioLogging',
+				'configLocation': __data,
+				'loggingLevel': Config.get('loggingLevel'),
+				'debugLineNum': Config.get('debugLineNum')
+			});
+			return true;
+		}
+	});
+}
 
-	Logs.log(`${Config.get('systemName')} can be accessed at http://${Config.get('host')}:${Config.get('port')}`, ['H', 'SERVER', Logs.g]);
+Logs.log(`${Config.get('systemName')} can be accessed at http://${Config.get('host')}:${Config.get('port')}`, ['H', 'SERVER', Logs.g]);
 
-	//Server.start(Config.get('port'), Config.get('portSSL'));
-	Server.start(Config.get('port'));
-	mainWindow.webContents.send('loaded', `http://localhost:${Config.get('port')}/app`);
-	//mainWindow.webContents.send('loaded', `https://localhost:${Config.get('portSSL')}/app`);
-	const Decoders = decoders()
-	for (let index = 0; index < Decoders.length; index++) {
-		const decoder = Decoders[index];
-		//startPush(decoder.ID);
-		//await sleep(0.2);
+//Server.start(Config.get('port'), Config.get('portSSL'));
+Server.start(Config.get('port'));
+
+clearProcesses();
+const signalServer = startSignalling();
+await sleep(1);
+Logs.log(`Singalling server has been started`, ['H', 'SERVER', Logs.g]);
+startPipelines();
+Logs.log(`Pipelines created`, ['H', 'SERVER', Logs.g]);
+startThumbWatch();
+Logs.log(`Thumbnail watcher started`, ['H', 'SERVER', Logs.g]);
+//setInterval(getPush, 10*1000);
+
+try {
+	UMD.listenUDP(8901);
+	UMD.listenTCP(8903);
+} catch (error) {
+	Logs.warn('TSL tally could not be started, port in use', error);
+}
+
+UMD.on('message', data => {
+	const breakpoint = /(\\.*?){6}u0000/;
+	const rawumds = JSON.stringify(data.display.text.replace('"','')).split(breakpoint);
+	const umds = rawumds.filter(umd => umd != '\\').map(umd => umd.replace('\"', ''));
+	const encodersData = encoders('SDI');
+	const umdIndex = data.index;
+	encodersData.forEach(encoder => {
+		if ((encoder.URL - umdIndex) < 0) return;
+		if (umds.length < (encoder.URL - umdIndex)) return;
+		encoder.Name = umds[encoder.URL - umdIndex];
+	})
+	const feeds = [];
+	encodersData.forEach(encoder => {
+		feeds.push({
+			"Name": encoder.Name,
+			"ID": encoder.ID
+		})
+	})
+	const payload = {
+		"command":"rename",
+		"feeds": feeds
 	}
-	startSignalling();
-	startPipelines();
-	startThumbWatch();
-	//setInterval(getPush, 10*1000);
-})().catch(error => {
-	console.log(error);
+	Server.sendToAll(payload);
+	writeData('Encoders', encodersData);
 });
 
 
-/* Electron */
 
-
-async function setUpApp() {
-	const tray = new Tray(path.join(__static, 'img/icon/icon-96x96.png'));
-	tray.setContextMenu(Menu.buildFromTemplate([
-		{
-			label: 'Show App', click: function () {
-				mainWindow.show();
-			}
-		},
-		{
-			label: 'Exit', click: function () {
-				isQuiting = true;
-				app.quit();
-			}
-		}
-	]));
-
-	ipcMain.on('window', (event, message) => {
-		switch (message) {
-		case 'exit':
-			app.quit();
-			break;
-		case 'minimise':
-			mainWindow.hide();
-			break;
-		default:
-			break;
-		}
-	});
-
-	ipcMain.on('config', (event, message) => {
-		switch (message) {
-		case 'start':
-			Config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData','config.conf'), configQuestion, configDone);
-			break;
-		case 'stop':
-			Logs.log('Not implemeneted yet: Cancle config change');
-			break;
-		case 'show':
-			Config.print();
-			break;
-		default:
-			break;
-		}
-	});
-
-	const autoLaunch = new AutoLaunch({
-		name: 'Home Studio',
-		isHidden: true,
-	});
-	autoLaunch.isEnabled().then(isEnabled => {
-		if (!isEnabled) autoLaunch.enable();
-	});
-
-	app.on('before-quit', function () {
-		isQuiting = true;
-	});
-
-	app.on('activate', async () => {
-		if (BrowserWindow.getAllWindows().length === 0) createWindow();
-	});
-
-	Logs.on('logSend', message => {
-		try {
-			if (!isQuiting) mainWindow.webContents.send('log', message);
-		} catch (error) {
-			
-		}
-	});
-}
-
-async function createWindow() {
-	const windowOptions = {
-		width: 1440,
-		height: 720,
-		autoHideMenuBar: true,
-		webPreferences: {
-			contextIsolation: true,
-			preload: path.resolve(__main, 'preload.js')
-		},
-		icon: path.join(__static, 'img/icon/icon-512x512.png'),
-		show: false,
-		frame: false,
-		titleBarStyle: 'hidden',
-		titleBarOverlay: {
-			color: '#313d48',
-			symbolColor: '#ffffff',
-			height: 56
-		}
-	};
-
-	if (IS_WINDOWS_11) {
-		mainWindow = new MicaBrowserWindow(windowOptions);
-		mainWindow.setDarkTheme();
-		mainWindow.setMicaEffect();
-	} else {
-		mainWindow = new BrowserWindow(windowOptions);
-	}
-
-	if (!app.commandLine.hasSwitch('hidden')) {
-		mainWindow.show();
-	} else {
-		mainWindow.hide();
-	}
-
-	mainWindow.on('close', function (event) {
-		if (!isQuiting) {
-			event.preventDefault();
-			mainWindow.webContents.send('requestExit');
-			event.returnValue = false;
-		}
-	});
-
-	mainWindow.on('minimize', function (event) {
-		event.preventDefault();
-		mainWindow.hide();
-	});
-
-	mainWindow.loadURL('file://' + __main + '/views/app.ejs');
-
-	await new Promise(resolve => {
-		ipcMain.on('ready', (event, ready) => {
-			if (configLoaded) {
-				//mainWindow.webContents.send('loaded', `https://localhost:${Config.get('portSSL')}/app`);
-				mainWindow.webContents.send('loaded', `http://localhost:${Config.get('port')}/app`);
-			}
-			resolve();
-		});
-	});
-}
 
 async function exitHandler(crash, error) {
-	shuttingDown = true;
+	Logs.log('Shutting down processes', ['C', 'EXIT', Logs.r]);
 	if (crash) Logs.error('Uncaught error has caused a crash', error);
-	try {
-		new _Shell(Logs, 'ERROR', 'E').runSync('killall -9 gst-launch-1.0');
-	} catch (error) {
-		
-	}
-	try {
-		new _Shell(Logs, 'ERROR', 'E').runSync('killall -9 gst-webrtc-signalling-server');
-	} catch (error) {
-		
-	}
+	clearProcesses();
 	process.exit();
 }
 
-
-/* Config Functions */
-
-
-async function configQuestion(question, current, options) {
-	mainWindow.webContents.send('configQuestion', JSON.stringify({
-		'question': question,
-		'current': current,
-		'options': options
-	}));
-	const awaitMessage = new Promise (resolve => {
-		ipcMain.once('configMessage', (event, value) => {
-			if (value == 'true') value = true;
-			if (value == 'false') value = false;
-			const newVal = parseInt(value);
-			if (!isNaN(newVal) && (value.match(/./g) || []).length < 2) value = newVal;
-			resolve(value);
-		});
-	});
-	return awaitMessage;
-}
-
-async function configDone() {
-	mainWindow.webContents.send('configDone', true);
-	Logs.setConf({
-		'createLogFile': Config.get('createLogFile'),
-		'LogsFileName': 'ArgosLogging',
-		'configLocation': path.join(app.getPath('documents'), 'ArgosData'),
-		'loggingLevel': Config.get('loggingLevel'),
-		'debugLineNum': Config.get('debugLineNum'),
-	});
-	if (configLoaded) mainWindow.webContents.send('loaded', `http://localhost:${Config.get('port')}/app`);
-	if (Config.get('localDataBase')) {
-		SQL = new SQLSession(
-			Config.get('dbHost'),
-			Config.get('dbPort'),
-			Config.get('dbUser'),
-			Config.get('dbPass'),
-			Config.get('dbName'),
-			Logs
-		);
-		await SQL.init(tables);
+function clearProcesses() {
+	try {
+		pipelines.forEach(pipeline => pipeline.kill());
+		new _Shell(Logs, 'ERROR', 'E').runSync('killall -9 gst-launch-1.0');
+	} catch (error) {
+		//Logs.error(error)
+		Logs.debug('No GST running');
+	}
+	try {
+		signalServer.kill();
+		new _Shell(Logs, 'ERROR', 'E').runSync('killall -9 gst-webrtc-signalling-server');
+	} catch (error) {
+		//Logs.error(error)
+		Logs.debug('No signaler running');
 	}
 }
 
@@ -365,32 +204,36 @@ async function configDone() {
 
 
 function newPipeline(input, outputs, ID) {
-	let command = `webrtcsink name=ws meta="meta,name=${ID}" `;
+	let command = `webrtcsink name=ws meta="meta,name=${ID}" turn-servers="\<\"turn:10.201.0.88:3478\"\>" `;
 	switch (input.type) {
 		case 'SDI':
-			command += `decklinkvideosrc device-number=${input.connector} mode=${input.format} `
+//			command += `decklinkvideosrc device-number=${input.connector} mode=${input.format} `
+			command += `decklinkvideosrc device-number=${input.connector} skip-first-time=1000000000 ! tee name=videot \\\n`
 			break;
 		case 'SRT':
-			command += `srtsrc uri="${input.url}" ! decodebin `
+			command += `srtsrc uri="${input.url}" ! decodebin ! tee name=videot \\\n`
 			break;
 		default:
 			break;
 	}
-	command += `! videoconvert ! tee name=t \\\n`;
-	command += `t. ! queue ! ws. \\\n`;
-	command += `t. ! queue ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnailsRaw/${ID}_thumb_%d.jpeg \\\n`;
+	//command += `! videoconvert ! tee name=t \\\n`;
+	command += `videot. ! queue ! videoconvert ! videoscale ! video/x-raw,height=720,width=1280 ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
+	//command += `videot. ! queue ! videoconvert ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
+	//command += `videot. ! queue ! videoconvert ! ws. \\\n`;
+	command += `videot. ! queue ! videoconvert ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnailsRaw/${ID}_thumb_%d.jpeg \\\n`;
 	outputs.forEach(output => {
 		switch (output.type) {
 			case 'SDI':
-				command += `t. ! queue ! videoconvert ! decklinkvideosink device-number=${output.connector} mode=${output.format} \\\n`
+				command += `videot. ! queue ! videoconvert ! decklinkvideosink device-number=${output.connector} mode=${output.format} \\\n`
 				break;
 			case 'SRT':
-				command += `t. ! queue ! videoconvert ! x264enc tune=zerolatency ! video/x-h264, profile=high ! mpegtsmux ! srtsink uri=${output.url} \\\n`
+				command += `videot. ! queue ! videoconvert ! x264enc tune=zerolatency ! video/x-h264, profile=high ! mpegtsmux ! srtsink uri=${output.url} \\\n`
 				break;
 			default:
 				break;
 		}
 	})
+	Logs.info(`Running: ${command}`);
 	return new _Pipeline(Logs, command);
 }
 
@@ -419,9 +262,17 @@ function startPipelines() {
 		Logs.object(outputs);
 		const SDI = newPipeline(input, outputs, String(encoder.ID));
 		pipelines.push(SDI);
-		SDI.on('playing', ()=>Logs.log(`${encoder.Name} is playing`));
-		SDI.on('stdout', message => Logs.debug(message));
-		SDI.on('stopped', ()=>pipelines.splice(pipelines.indexOf(SDI),1));
+		SDI.on('playing', ()=>Logs.log(`${encoder.Name} is active`, ['C', 'SDISRC', Logs.g]));
+		SDI.on('feedActive', ()=>Logs.log(`${encoder.Name} is recieving SDI`, ['C', 'SDISRC', Logs.g]));
+		SDI.on('stdout', message => Logs.log(message, ['D', 'SDISRC', Logs.c]));
+		SDI.on('stopped', ()=> {
+			Logs.log(`${encoder.Name} has stopped recieving SDI`, ['C', 'SDISRC', Logs.y]);
+			if (!SDI.killed) SDI.restart();
+		})
+		SDI.on('killed', ()=> {
+			Logs.log(`${encoder.Name} has been killed`, ['C', 'SDISRC', Logs.r]);
+			pipelines.splice(pipelines.indexOf(SDI),1);
+		})
 		SDI.start();
 	})
 	encoders('SRT').forEach(encoder => {
@@ -446,9 +297,17 @@ function startPipelines() {
 		Logs.object(outputs);
 		const SRT = newPipeline(input, outputs, String(encoder.ID));
 		pipelines.push(SRT);
-		SRT.on('playing', ()=>Logs.log(`${encoder.Name} is playing`));
-		SRT.on('stdout', message => Logs.debug(message));
-		SRT.on('stopped', ()=>pipelines.splice(pipelines.indexOf(SRT),1));
+		SRT.on('playing', ()=>Logs.log(`${encoder.Name} is active`, ['C', 'SRTSRC', Logs.g]));
+		SRT.on('feedActive', ()=>Logs.log(`${encoder.Name} is recieving SRT`, ['C', 'SRTSRC', Logs.g]));
+		SRT.on('stdout', message => Logs.log(message, ['D', 'SRTSRC', Logs.c]));
+		SRT.on('stopped', ()=> {
+			Logs.log(`${encoder.Name} has stopped recieving SRT`, ['C', 'SRTSRC', Logs.y]);
+			if (!SRT.killed) SRT.restart();
+		})
+		SRT.on('killed', ()=> {
+			Logs.log(`${encoder.Name} has been killed`, ['C', 'SRTSRC', Logs.r]);
+			pipelines.splice(pipelines.indexOf(SRT),1);
+		})
 		SRT.start();
 	})
 }
@@ -468,6 +327,7 @@ function startSignalling() {
 			else Logs.log(stdout, ['D', 'SIGNAL', Logs.c]);
 		});
 	}
+	return signalServer;
 }
 
 function startThumbWatch() {
@@ -490,12 +350,6 @@ function encoders(type) {
 	return Encoders;
 }
 
-function decoders(id) {
-	const Decoders = loadData('Decoders');
-	if (id !== undefined) return Decoders.filter(decoder => decoder.ID == id);
-	return Decoders;
-}
-
 function layouts(id) {
 	const Layouts = loadData('Layouts');
 	if (id !== undefined) return Layouts.filter(layout => layout.ID == id);
@@ -503,7 +357,7 @@ function layouts(id) {
 }
 
 function expressRoutes(expressApp) {
-	expressApp.set('views', path.join(__main, 'views'));
+	expressApp.set('views', path.join(__dirname, 'views'));
 	expressApp.set('view engine', 'ejs');
 	expressApp.use(express.json());
 	expressApp.use(express.static(__static));
@@ -513,14 +367,12 @@ function expressRoutes(expressApp) {
 		version: version,
 		homestudioKey: Config.get('homestudioKey'),
 		encoders: encoders(),
-		decoders: decoders(),
 		layouts: layouts(),
 		host: Config.get('host'),
 		reconnectTimeoutSeconds: Config.get('reconnectTimeoutSeconds'),
 		allowLowres: Config.get('allowLowres'),
 		allowSearch: Config.get('allowSearch'),
-		trebmalAddress: Config.get('trebmalAddress'),
-		background: background
+		trebmalAddress: Config.get('trebmalAddress')
 	}}
 
 	expressApp.get('/',  (req, res) =>  {
@@ -585,8 +437,7 @@ function expressRoutes(expressApp) {
 				'Version': version,
 				'Config': Config.all(),
 				'Layouts': layouts(),
-				'Encoders': encoders(),
-				'Decoders': decoders()
+				'Encoders': encoders()
 			},
 			'systemName': Config.get('systemName')
 		}
@@ -601,9 +452,6 @@ function expressRoutes(expressApp) {
 		case 'encoders':
 			data = encoders();
 			break;
-		case 'decoders':
-			data = decoders();
-			break;
 		case 'layouts':
 			data = layouts();
 			break;
@@ -614,7 +462,35 @@ function expressRoutes(expressApp) {
 		//getPush();
 	});
 
-	expressApp.post('/setencoders', (req, res) => {
+	expressApp.get('/trebRec',  (req, res) => {
+		Server.sendToAll({
+			"command":"trebRec"
+		});
+		res.send('yes');
+	});
+
+	expressApp.get('/trebClip',  (req, res) => {
+		Server.sendToAll({
+			"command":"trebClip"
+		});
+		res.send('yes');
+	});
+
+	expressApp.get('/trebPlay',  (req, res) => {
+		Server.sendToAll({
+			"command":"trebPlay"
+		});
+		res.send('yes');
+	});
+
+	expressApp.get('/trebDone',  (req, res) => {
+		Server.sendToAll({
+			"command":"trebDone"
+		});
+		res.send('yes');
+	});
+
+	expressApp.post('/setencoders', async (req, res) => {
 		Logs.log('Request to set encoders config data', 'D');
 		Server.sendToAll({
 			"command":"feeds",
@@ -622,8 +498,10 @@ function expressRoutes(expressApp) {
 		});
 		writeData('Encoders', req.body);
 		res.send('Done');
-		pipelines.forEach(pipeline => pipeline.stop());
-		startPipelines();
+		const Shell = new _Shell(Logs, 'KILLER', 'W');
+		Shell.runSync('killall -9 gst-launch-1.0');
+		await sleep(1);
+		process.exit();
 	});
 	expressApp.post('/setdecoders', (req, res) => {
 		Logs.log('Request to set decoders config data', 'D');
@@ -662,6 +540,16 @@ async function doMessage(msgObj, socket) {
 		Logs.log(`Sending GET to http://${Config.get('trebmalAddress')}/${payload.endpoint}`);
 		fetch(`http://${Config.get('trebmalAddress')}/${payload.endpoint}`);
 		break;
+	case 'rename':
+		Server.sendToAll(payload);
+		const encodersData = encoders();
+		encodersData.forEach(encoder => {
+			if (encoder.ID == payload.feeds[0].ID) {
+				encoder.Name = payload.feeds[0].Name;
+			}
+		})
+		writeData('Encoders', encodersData);
+		break;
 	default:
 		logObj('Unknown message', msgObj, 'W');
 	}
@@ -669,7 +557,7 @@ async function doMessage(msgObj, socket) {
 
 function loadData(file) {
 	try {
-		const dataRaw = fs.readFileSync(`${__data}/HomeStudioData/data/${file}.json`);
+		const dataRaw = fs.readFileSync(`${__data}/data/${file}.json`);
 		try {
 			return JSON.parse(dataRaw);
 		} catch (error) {
@@ -685,8 +573,8 @@ function loadData(file) {
 			fileData[0] = {
 				'Name':'Camera 1',
 				'ID':1,
-				'Type':'Local Encoder',
-				'URL':'wss://IPAddress:3333/app/feed1',
+				'Type':'SRT',
+				'URL':'srt://IPAddress:3333',
 				'OutPort':1,
 				'OutURL':'srt://IPAddress:9000'
 			};
@@ -775,16 +663,16 @@ function loadData(file) {
 		default:
 			break;
 		}
-		if (!fs.existsSync(`${__data}/HomeStudioData/data/`)){
-			fs.mkdirSync(`${__data}/HomeStudioData/data/`);
+		if (!fs.existsSync(`${__data}/data/`)){
+			fs.mkdirSync(`${__data}/data/`);
 		}
-		fs.writeFileSync(`${__data}/HomeStudioData/data/${file}.json`, JSON.stringify(fileData, null, 4));
+		fs.writeFileSync(`${__data}/data/${file}.json`, JSON.stringify(fileData, null, 4));
 		return fileData;
 	}
 }
 function writeData(file, data) {
 	try {
-		fs.writeFileSync(`${__data}/HomeStudioData/data/${file}.json`, JSON.stringify(data, undefined, 2));
+		fs.writeFileSync(`${__data}/data/${file}.json`, JSON.stringify(data, undefined, 2));
 	} catch (error) {
 		logObj(`Cloud not write the file ${file}.json, do we have permission to access the file?`, error, 'E');
 	}
@@ -792,122 +680,4 @@ function writeData(file, data) {
 
 async function sleep(seconds) {
 	await new Promise (resolve => setTimeout(resolve, 1000*seconds));
-}
-
-async function startPush(id) {
-	const decoderConfig = decoders(id)[0];
-	const body = {
-		"id": "push_decoder_"+id,
-		"stream": {
-		 	"name": decoderConfig.Feed
-		},
-		"protocol": "srt",
-		"url": decoderConfig.URL+"?mode=caller"
-	}
-	Logs.debug(`Sending push request to: http://${Config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`);
-	try {
-		const response = await fetch(`http://${Config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
-			method: 'POST',
-			headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
-			body: JSON.stringify(body)
-		})
-		const jsonRpcResponse = await response.json();
-		if (response.status !== 200) {
-			Logs.warn('Could not reach OME server', response.statusText);
-			Server.sendToAll({
-				"command": "log",
-				"type": "decoding",
-				"message": `Error pushing stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-			});
-			return;
-		}
-		Server.sendToAll({
-			"command": "log",
-			"type": "decoding",
-			"message": `Started pushing stream: <pre <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-		});
-		return jsonRpcResponse;
-	} catch (error) {
-		Logs.warn('Could not reach OME server', error);
-		Server.sendToAll({
-			"command": "log",
-			"type": "decoding",
-			"message": `Error pushing stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(error, null, 4)}</pre>`
-		});
-		return;
-	}
-}
-
-async function stopPush(id) {
-	const body = {
-		"id": "push_decoder_"+id
-	}
-	Logs.debug(`Sending push request to: http://${Config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`);
-	try {
-		const response = await fetch(`http://${Config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`,{
-			method: 'POST',
-			headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
-			body: JSON.stringify(body)
-		})
-		const jsonRpcResponse = await response.json();
-		if (response.status !== 200) {
-			Logs.warn('Could not reach OME server', response.statusText);
-			Server.sendToAll({
-				"command": "log",
-				"type": "decoding",
-				"message": `Error stopping stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-			});
-			return;
-		}
-		Server.sendToAll({
-			"command": "log",
-			"type": "decoding",
-			"message": `Stopped pushing stream: <pre class="d-none" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-		});
-		return jsonRpcResponse;	
-	} catch (error) {
-		Logs.warn('Could not reach OME server', error);
-		Server.sendToAll({
-			"command": "log",
-			"type": "decoding",
-			"message": `Error stopping stream: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(error, null, 4)}</pre>`
-		});
-		return;
-	}
-}
-
-async function getPush(id) {
-	const postOptions = {
-		method: 'POST',
-		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')}
-	}
-	if (id) postOptions.body = JSON.stringify({"id": "push_decoder_"+id});
-	Logs.log(`Getting pushes from to: http://${Config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, 'A');
-	try {
-		const response = await fetch(`http://${Config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, postOptions)
-		const jsonRpcResponse = await response.json();
-		if (response.status !== 200) {
-			Logs.warn('Could not reach OME server', response.statusText);
-			Server.sendToAll({
-				"command": "log",
-				"type": "decoding",
-				"message": `Error getting pushes: ${response.statusText}: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(jsonRpcResponse, null, 4)}</pre>`
-			});
-			return;
-		}
-		Server.sendToAll({
-			"command": "log",
-			"type": "pushStatus",
-			"message": jsonRpcResponse
-		});
-		return jsonRpcResponse;
-	} catch (error) {
-		Logs.warn('Could not reach OME server', error);
-		Server.sendToAll({
-			"command": "log",
-			"type": "decoding",
-			"message": `Error getting pushes cannot connect to server: <pre class="bg-secondary card p-1 px-2 mt-2" style="white-space: break-spaces;">${JSON.stringify(error, null, 4)}</pre>`
-		});
-		return;
-	}
 }

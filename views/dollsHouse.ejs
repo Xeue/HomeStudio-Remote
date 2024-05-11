@@ -1,12 +1,13 @@
-<article class="d-none d-flex justify-content-around p-5 gap-5 h-50 my-auto" id="dollsCont">
-    <button class="btn btn-danger flex-grow-1 fs-1" id="trebmal_startRecord">Start Record</button>
-    <button class="btn btn-primary flex-grow-1 fs-1" id="trebmal_stopRecord">Stop Record</button>
-    <button class="btn btn-success flex-grow-1 fs-1" id="trebmal_startPlay">Play Backwards</button>
-	<div class="d-none">
-		<button id="trebmal_stopPlay">Stop Playback</button>
-		<button id="trebmal_startRing1">Start Ring 1</button>
-		<button id="trebmal_stopRing1">Stop Ring 1</button>
-		<button id="trebmal_startRing2">Start Ring 2</button>
-		<button id="trebmal_stopRing2">Stop Ring 2</button>
+<article class="d-none d-flex flex-column p-5 gap-5 h-50 my-auto" id="dollsCont" data-status="trebDone">
+	<div class="d-flex flex-1 gap-5 h-75">
+		<button class="btn btn-danger flex-grow-1 fs-1" id="trebmal_startRecord">Start Record</button>
+		<button class="btn btn-primary flex-grow-1 fs-1" id="trebmal_stopRecord">Stop Record</button>
+		<button class="btn btn-success flex-grow-1 fs-1" id="trebmal_startPlay">Play Backwards</button>
+	</div>
+	<div class="text-center mt-5 pt-5">
+		<button class="btn btn-danger flex-grow-1 fs-1" id="trebmal_stopRing1">Stop Ring 1</button>
+		<button class="btn btn-danger flex-grow-1 fs-1" id="trebmal_stopRing2">Stop Ring 2</button>
+		<button class="btn btn-danger flex-grow-1 fs-1" id="trebmal_stopRingAll">Stop Both Rings</button>
+		<button class="btn btn-danger flex-grow-1 fs-1" id="trebmal_stopPlay">Stop Playback</button>
 	</div>
 </article>

@@ -220,40 +220,6 @@ nav.drag {
   background-color: #0040ff;
 }
 
-
-/*
-@supports(selector(:has(p))) {
-  .sourceSelect {
-      max-width: 0px;
-      min-width: 0px;
-      width: 0;
-      opacity: 0;
-  }
-  
-  #thumbList {
-      padding-left: 0rem !important;
-  }
-  
-  main:has(.selectedPlayer) aside .sourceSelect {
-      max-width: 300px;
-      min-width: 120px;
-      width: 15vw;
-      opacity: 1;
-  }
-  
-  main:has(.selectedPlayer) aside#thumbList {
-      padding-left: 0.25rem !important;
-  }
-
-  .appHome .sourceSelect {
-    max-width: 300px;
-    min-width: 200px;
-    width: 20vw;
-    opacity: 1;
-  }
-}
-*/
-
 .op-message-container::before {
   content: "No camera feed currently connected";
   color: white;
@@ -286,7 +252,31 @@ nav.drag {
   max-width: 100%;
 }
 
+.feed-rename {
+  display: none;
+}
 
+.appHome .card-title {
+  display: none;
+}
+
+.appHome .feed-rename {
+  display: block;
+  pointer-events: all;
+}
+
+[data-status="trebDone"] #trebmal_stopRecord,
+[data-status="trebDone"] #trebmal_startPlay,
+[data-status="trebPlay"] #trebmal_startRecord,
+[data-status="trebPlay"] #trebmal_stopRecord,
+[data-status="trebPlay"] #trebmal_startPlay,
+[data-status="trebClip"] #trebmal_stopRecord,
+[data-status="trebRec"] #trebmal_startRecord,
+[data-status="trebRec"] #trebmal_startPlay {
+  background: grey;
+  pointer-events: none;
+  cursor: not-allowed;
+}
 
 
 

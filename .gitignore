@@ -130,3 +130,6 @@ dist
 .pnp.*
 
 HomeStudioData/*
+
+static/thumbnails/*
+static/thumbnailsRaw/*

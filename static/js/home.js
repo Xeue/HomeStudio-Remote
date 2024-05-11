@@ -5,6 +5,7 @@ let editors = {};
 const templates = {};
 const players = [];
 let mapping = [];
+let sessions = {};
 let activeLayout = 1;
 let gstreamerApi;
 
@@ -21,22 +22,6 @@ templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
       <button type="button" class="btn btn-danger deleteRow w-50">Delete</button>
     </td>
   </tr>
-<% } %>`;
-
-templates.decoder = `<% for(i = 0; i < devices.length; i++) { %>
-	<tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="decoder">
-	  <td class="decodeStatus"></td>
-	  <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
-	  <td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
-	  <td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
-	  <td data-type="select" data-key="Feed" data-value="<%-devices[i].Feed%>" data-variable="encoders"><%-devices[i].Feed%></td>
-	  <td class="d-flex gap-2">
-	    <button type="button" class="btn btn-success startSRTPush flex-grow-1">Start</button>
-		<button type="button" class="btn btn-success stopSRTPush flex-grow-1">Stop</button>
-		<button type="button" class="btn btn-danger editConfig flex-grow-1">Edit</button>
-		<button type="button" class="btn btn-danger deleteRow flex-grow-1">Delete</button>
-	  </td>
-	</tr>
 <% } %>`;
 
 layoutDragTemplate = `<div class="layoutPlaceholder layoutPip"
@@ -63,68 +48,22 @@ function socketDoOpen(socket) {
 
 function socketDoMessage(header, payload) {
 	switch (payload.command) {
-		case 'data':
-			if (payload.system === currentSystem) {
-				switch (payload.data) {
-					case 'ping':
-						if (payload.replace) {
-							pingChart.data.datasets[0].data = payload.points;
-						} else {
-							const datePing = new Date(parseInt(payload.time));
-							const colour = payload.status == 1 ? '128, 255, 128' : '255, 64, 64';
-							pingChart.data.datasets[0].data[datePing] = payload.status;
-							pingChart.data.datasets[0].backgroundColor[0] = `rgba(${colour}, 0.2)`;
-							pingChart.data.datasets[0].borderColor[0] = `rgba(${colour}, 1)`;
-						}
-						lastPing = Date.now();
-						pingChart.update();
-						break;
-					case 'boot':
-						if (payload.replace) {
-							bootChart.data.datasets[0].data = payload.points;
-						} else {
-							const dateBoot = new Date(parseInt(payload.time));
-							bootChart.data.datasets[0].data[dateBoot] = 1;
-						}
-						lastBoot = Date.now();
-						bootChart.update();
-						break;
-					case 'temps':
-						if (payload.replace) {
-							replaceTemps(payload.points);
-						} else {
-							addTemps(payload.points);
-						}
-						lastHot = Date.now();
-						break;
-				}
-			}
-			break;
-		case 'log':
-			switch (payload.type) {
-				case 'decoding':
-					$('#SRTPushStatus').html(payload.message);
-					break;
-				case 'pushStatus':
-					if (payload.message.message !== "OK") break;
-					$('#configDecoders tr').attr('class', '');
-					payload.message.response.forEach(decode => {
-						const $tr = $(`#configDecoders [data-id="${decode.id.replace('push_decoder_', '')}"`);
-						$tr.addClass(decode.state);
-					})
-					break;
-				default:
-					break;
-			}
-			break;
+		case 'rename':
 		case 'feeds':
 			payload.feeds.forEach(feed => {
 				$(`.feed-title[data-id="${feed.ID}"]`).html(feed.Name);
+				$(`.feed-rename[data-id="${feed.ID}"]`).val(feed.Name);
 				$(`.sourceSelect[data-id="${feed.ID}"]`).data('name', feed.Name);
 			});
 			break;
 		case 'layouts':
 			layouts = payload.layouts;
+			break;
+		case 'trebRec':
+		case 'trebPlay':
+		case 'trebClip':
+		case 'trebDone':
+			$('#dollsCont').attr('data-status', payload.command);
 			break;
 		default:
 			console.log('Unknown WS message');
@@ -158,26 +97,22 @@ $(document).ready(function() {
 	if (layoutUnparsed !== undefined) {
 		setActiveLayout(JSON.parse(layoutUnparsed));
 	}
-	gstreamerApi
+	//gstreamerApi
 	renderStreams();
 
-	$(document).click(function(e) {
+	$(document).click(async function(e) {
 		const $trg = $(e.target);
 		if ($trg.is('#toggleConfig')) {
 			if ($('#config').hasClass('hidden')) {
 				loading(true);
-				Promise.allSettled([
-					getConfig('encoders'),
-					getConfig('decoders'),
-				]).then(values => {
-					const [encoders, decoders] = values;
+				try {
+					const encoders = await getConfig('encoders')
 					loading(false);
 					$('#config').removeClass('hidden');
-					editors['encoders'] = renderEditorTab(encoders.value, editors['encoders'], templates.encoder, 'configEncoders');
-					editors['decoders'] = renderEditorTab(decoders.value, editors['decoders'], templates.decoder, 'configDecoders');
-				}).catch(error => {
+					editors['encoders'] = renderEditorTab(encoders, editors['encoders'], templates.encoder, 'configEncoders');
+				} catch (error) {
 					console.error(error);
-				});
+				}
 			} else {
 				$('#config').addClass('hidden');
 			}
@@ -307,6 +242,8 @@ $(document).ready(function() {
 			$trg.closest('.player-quad').addClass('selectedPlayer');
 		} else if ($trg.hasClass('layoutSave')) {
 			layoutSave();
+		} else if ($trg.hasClass('deleteLayout')) {
+			layoutDelete();
 		} else if ($trg.hasClass('addLayout')) {
 			const newID = layouts.length+1;
 			layouts.push({
@@ -376,6 +313,8 @@ $(document).ready(function() {
 			localConnection.send({'command':'trebmal','endpoint':'startRing2'});
 		} else if ($trg.is('#trebmal_stopRing2')) {
 			localConnection.send({'command':'trebmal','endpoint':'stopRing2'});
+		} else if ($trg.is('#trebmal_stopRingAll')) {
+			localConnection.send({'command':'trebmal','endpoint':'stopRingAll'});
 		} else if (!$trg.hasClass('player-quad') && !$trg.parents('.player-quad').length) {
 			$('.selectedPlayer').removeClass('selectedPlayer');
 		}
@@ -453,6 +392,23 @@ $(document).ready(function() {
 				}
 			});
 			console.log($trg.val());
+		}
+	});
+
+	$(document).on('input', async function(e) {
+		const $trg = $(e.target);
+		if ($trg.hasClass('feed-rename')) {
+			const id = $trg.attr('data-id');
+			const value = $trg.val();
+			localConnection.send({
+				"command":"rename",
+				"feeds": [
+					{
+						"Name":value,
+						"ID":id
+					}
+				]
+			});
 		}
 	});
 
@@ -566,12 +522,6 @@ function initRemoteStreams() {
 				dummyData[0].Type = 'Select';
 				dummyData[0].URL = '';
 				break;
-			case 'decoder':
-				dummyData[0].Name = `Decoder ${newID}`;
-				dummyData[0].ID = newID;
-				dummyData[0].Feed = 'Select';
-				dummyData[0].URL = '';
-				break;
 			default:
 				break;
 		}
@@ -594,7 +544,6 @@ function initRemoteStreams() {
 			}
 		}
 		encoders = editors['encoders'].get();
-		decoders = editors['decoders'].get();
 		renderStreams();
 		Promise.allSettled(promises).then(() => {
 			alert('Saved');
@@ -687,14 +636,14 @@ function initRemoteStreams() {
 }
 
 
-function layoutSave() {
+async function layoutSave() {
 	const thisLayout = getActiveLayout();
 	$cont = $('#layoutGridCont');
 	thisLayout.Columns = Number($cont.attr('data-cols'));
 	thisLayout.Rows = Number($cont.attr('data-rows'));
 	thisLayout.Pips = {};
 	$cont.children().each(function(i, pip) {
-		$pip = $(pip);
+		const $pip = $(pip);
 		const id = Number($pip.attr('data-pip'));
 		const rowStart = Number($pip.attr('data-row-start'));
 		const rowEnd = Number($pip.attr('data-row-end'));
@@ -707,11 +656,30 @@ function layoutSave() {
 			'colEnd':colEnd
 		}
 	});
-	$.ajax(`${server}setlayouts`, {
-		data : JSON.stringify(layouts),
-		contentType : 'application/json',
-		type : 'POST'
+	await fetch(`${server}setlayouts`, {
+		method : 'POST',
+		body : JSON.stringify(layouts),
+		headers: {
+			"Content-Type": "application/json",
+		}
 	})
+	drawAdvancedLayoutSelect();
+	$('.popup').addClass('hidden');
+}
+
+async function layoutDelete() {
+	if (layouts.length < 2) return;
+	const _active = Number(document.querySelector('.layoutConfigSelect.active').getAttribute('data-id'));
+	layouts.splice(_active - 1, 1);
+	setActiveLayout(_active - 1);
+	await fetch(`${server}setlayouts`, {
+		method : 'POST',
+		body : JSON.stringify(layouts),
+		headers: {
+			"Content-Type": "application/json",
+		}
+	})
+	drawAdvancedLayoutSelect();
 }
 
 function doResize(e) {
@@ -962,6 +930,7 @@ function getActiveLayout() {
 }
 
 function setActiveLayout(number) {
+	hideDolls();
 	activeLayout = Number(number);
 	Cookies.set('activeLayout', JSON.stringify(activeLayout), {
 		SameSite: 'Lax'
@@ -1157,8 +1126,8 @@ function choseWindows(number) {
 }
 
 function openPlayer($element) {
-	const streamURL = $element.data('url');
-	const streamName = $element.data('name');
+	const streamURL = String($element.data('url'));
+	const streamName = String($element.data('name'));
 	const streamType = $element.data('type');
 	const streamID = $element.data('id');
 	const $player = $(`<div id="${streamName.replace(/ /g, '-')}-player" class="player-cont">`);
@@ -1182,6 +1151,10 @@ function openPlayer($element) {
 	$selectedTitle.html(streamName);
 
 	switch (streamType) {
+		case 'SDI':
+		case 'SRT':
+			startGstPlayer($selectedCont[0], $element.attr('data-producer'));
+			break;
 		case 'Local Encoder':
 		case 'Homestudio WebRTC':
 			let resolution = "";
@@ -1238,13 +1211,10 @@ function openPlayer($element) {
 			};
 			SLDP.init(options);
 			break;
-		case 'SDI':
-		case 'SRT':
-			startGstPlayer($selectedCont[0], $element.attr('data-producer'));
-			break;
 		default:
 			break;
 	}
+	$('.selectedPlayer').removeClass('selectedPlayer');
 }
 
 function closePlayer($element) {
@@ -1259,6 +1229,8 @@ function closePlayer($element) {
 		} else {
 
 		}
+		$cont.find('.has-session').removeClass('has-session');
+		$cont.find('.streaming').removeClass('streaming');
 		$element.remove();
 		const pip = Number($cont.attr('data-pip'));
 		mapping[pip] = 0;
@@ -1347,12 +1319,14 @@ function buildThumbnails() {
 		data-type="${encoder.Type}">
 			<section class="playerTitle">
 				<h5 class="card-title feed-title" data-id="${encoder.ID}">${encoder.Name}</h5>
+				<input class="feed-rename" data-id="${encoder.ID}" value="${encoder.Name}">
 			</section>
 			<img class="thumbnail card-img-top"
 				src="thumbnails/${encoder.ID}_thumb.jpeg"
 				data-src="thumbnails/${encoder.ID}_thumb.jpeg"
 				onerror="if (this.src != 'img/holding.png') this.src = 'img/holding.png';">
 		</div>`);
+		
 	});
 	$("#thumbSearch").remove();
 	if (allowSearch && encoders.length > 4 && layout != 'thumbnail') {
@@ -1452,6 +1426,8 @@ function startGstPlayer(_selectedCont, producerId) {
 		_selectedCont._consumerSession.close();
 	}
 
+	if (sessions[producerId]) sessions[producerId].close();
+
 	const session = gstreamerApi.createConsumerSession(producerId);
 	if (session) {
 		_selectedCont._consumerSession = session;
@@ -1472,13 +1448,11 @@ function startGstPlayer(_selectedCont, producerId) {
 		});
 
 		session.addEventListener("streamsChanged", () => {
-			if (_selectedCont._consumerSession === session) {
+			if (_selectedCont._consumerSession !== session) return;
 				const streams = session.streams;
-				if (streams.length > 0) {
-					_video.srcObject = streams[0];
-					_video.play().catch(() => { });
-				}
-			}
+			if (streams.length < 1) return;
+			_video.srcObject = streams[0];
+			_video.play().catch(() => { });
 		});
 
 		session.addEventListener("remoteControllerChanged", () => {
@@ -1495,5 +1469,6 @@ function startGstPlayer(_selectedCont, producerId) {
 
 		_selectedCont.classList.add("has-session");
 		session.connect();
+		sessions[producerId] = session;
 	}
 }
