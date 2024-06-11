@@ -150,15 +150,17 @@ UMD.on('message', data => {
 	const breakpoint = /(\\.*?){6}u0000/;
 	const rawumds = JSON.stringify(data.display.text.replace('"','')).split(breakpoint);
 	const umds = rawumds.filter(umd => umd != '\\').map(umd => umd.replace('\"', ''));
-	const encodersData = encoders('SDI');
+	const encodersData = encoders();
 	const umdIndex = data.index;
 	encodersData.forEach(encoder => {
+		if (encoder.Type != "SDI") return;
 		if ((encoder.URL - umdIndex) < 0) return;
 		if (umds.length < (encoder.URL - umdIndex)) return;
 		encoder.Name = umds[encoder.URL - umdIndex];
 	})
 	const feeds = [];
 	encodersData.forEach(encoder => {
+		if (encoder.Type != "SDI") return;
 		feeds.push({
 			"Name": encoder.Name,
 			"ID": encoder.ID
