@@ -13,7 +13,7 @@ templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
     <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
 	<td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
-	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,SDI,SRT,WebRTC,Homestudio"><%-devices[i].Type%></td>
+	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,SDI,SRT,Homestudio"><%-devices[i].Type%></td>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
 	<td data-type="text" data-key="OutPort" data-value="<%-devices[i].OutPort%>"><%-devices[i].OutPort%></td>
 	<td data-type="text" data-key="OutURL" data-value="<%-devices[i].OutURL%>"><%-devices[i].OutURL%></td>
@@ -87,10 +87,10 @@ $(document).ready(function() {
 	});
 	localConnection.addEventListener('open', () => {
 		socketDoOpen(localConnection);
-		$('#broken').html(`<span class="p-2 badge badge-pill bg-success">${currentSystem} Online</span>`);
+		$('#broken').html(`<span class="p-2 bg-success">${currentSystem} Online</span>`);
 	});
 	localConnection.addEventListener('close', () => {
-		$('#broken').html(`<span class="p-2 badge badge-pill bg-danger">${currentSystem} Offline</span>`);
+		$('#broken').html(`<span class="p-2 bg-danger">${currentSystem} Offline</span>`);
 	});
 
 	const layoutUnparsed = Cookies.get('activeLayout');

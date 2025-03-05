@@ -49,9 +49,6 @@
 				<img src="img/icon/icon.svg" class="d-inline-block align-top" alt="" width="30" height="30">
 				<%-systemName%>
 			</a>
-			<div class="btn-group">
-				<div class="w-auto" id="broken"></div>
-			</div>
 		</div>
         <div></div>
         <% switch (layout) {
@@ -73,7 +70,6 @@
                 <% break;
         } %>
         <div></div>
-        <button id="dollsTab" class="btn btn-secondary">Dolls House</button>
         <div></div>
 
         <div class="d-flex gap-1">
@@ -91,6 +87,7 @@
             <% if (!inApp) { %>
                 <button id="installBtn" onclick="install()" class="btn btn-secondary d-none">Install</button>
                 <button id="refresh" class="btn btn-secondary" onClick="window.location.reload();">Refresh</button>
+                <div class="w-auto my-auto" id="broken"></div>
             <% } %>
         </div>
         <% if (inApp) { %>
@@ -111,7 +108,6 @@
     <% if (config) { %>
         <%- include('modals/config.ejs'); %>
     <% } %>
-    <%- include('dollsHouse.ejs'); %>
 </body>
 
 </html>

@@ -126,7 +126,7 @@ nav.drag {
 }
 
 .sourceSelect > div {
-  border-radius: 3px;
+  border-radius: 0px;
 }
 
 .tabHeader {
@@ -156,7 +156,7 @@ nav.drag {
 }
 
 .player-container {
-  border-radius: 3px;
+  border-radius: 0px;
   overflow: hidden;
   margin-block: auto;
 }
@@ -228,7 +228,7 @@ nav.drag {
   padding: 0.8em 1.2em;
   word-wrap: break-word;
   max-width: 80%;
-  border-radius: 4px;
+  border-radius: 0px;
   cursor: pointer;
   font-size: 110%;
   font-weight: bold;
@@ -312,9 +312,10 @@ nav.drag {
 
 .layoutPlaceholder {
   border: 1px solid #3b3f44;
-  border-radius: 5px;
-  box-shadow: #000 0px 0px 10px -5px;
+  border-radius: 0;
+  /*! box-shadow: #000 0px 0px 10px -5px; */
   padding: 1rem;
+  background: black;
 }
 
 .layoutPip {
@@ -363,19 +364,19 @@ nav.drag {
 .layoutDragBL,
 .layoutDragBR {
   position: absolute;
-  border-radius: 3px;
+  border-radius: 0px;
   --width: 0.75rem;
 }
 
 .layoutDragT:hover,
 .layoutDragB:hover {
-  background: rgba(0, 149, 255, 0.438);
+  background: red;
   cursor: s-resize;
 }
 
 .layoutDragL:hover,
 .layoutDragR:hover {
-  background: rgba(0, 149, 255, 0.438);
+  background: red;
   cursor: e-resize;
 }
 
@@ -424,7 +425,7 @@ nav.drag {
 .layoutDragBL::before {
   content: "";
   position: absolute;
-  border-radius: 3px;
+  border-radius: 0;
   pointer-events: all;
 }
 .layoutDragTR::before,
@@ -449,7 +450,7 @@ nav.drag {
 .layoutDragBR:hover::before,
 .layoutDragTL:hover::before,
 .layoutDragBL:hover::before {
-  background: rgb(19, 86, 135);
+  background: red;
   cursor: sw-resize;
 }
 .layoutDragBR:hover::before,
@@ -530,7 +531,7 @@ body.micaActive {
 
 #layoutGridCont.resizeShadow::after {
   content: "";
-  background: rgb(89, 154, 255);
+  background: rgb(255, 154, 89);
   --col-start: 0;
   --col-end: 0;
   --row-start: 0;
@@ -540,7 +541,7 @@ body.micaActive {
   position: relative;
   overflow: hidden;
   opacity: 0.2;
-  border-radius: 5px;
+  border-radius: 0px;
   outline: 2px solid rgb(0, 171, 255);
   cursor: grab;
 }
@@ -569,3 +570,7 @@ body.micaActive {
 #layoutGridCont[data-row-end="4"]::after {--row-end: 5;}
 #layoutGridCont[data-row-end="5"]::after {--row-end: 6;}
 #layoutGridCont[data-row-end="6"]::after {--row-end: 7;}
+
+.btn {
+  border-radius: 0;
+}

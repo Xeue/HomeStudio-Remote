@@ -18,9 +18,9 @@
                                 <th class="">Name</th>
                                 <th class="">ID</th>
                                 <th class="">Type</th>
-                                <th class="">URL/Input Port</th>
-                                <th class="">Output Port</th>
-                                <th class="">Output SRT URL</th>
+                                <th class="">URL/Input Spigot</th>
+                                <th class="">Output Spigot</th>
+                                <th class="">SRT URL</th>
                                 <th class=""></th>
                             </tr>
                         </thead>
@@ -66,10 +66,10 @@
         </section>
 
         <div class="mt-3 mx-0 d-flex gap-1 flex-wrap justify-content-end">
-            <input id="csvUpload" class="form-control w-25" type="file" accept="text/csv" name="csvUpload" size="30">
-            <button class="btn btn-primary tableImport" type="button" disabled>Import CSV</button>
-            <button class="btn btn-primary tableExport" type="button">Export as CSV</button>
-            <button class="btn btn-primary toggleTableRaw" type="button">Toggle View</button>
+            <input id="csvUpload" class="form-control w-25 d-none" type="file" accept="text/csv" name="csvUpload" size="30">
+            <button class="btn btn-primary tableImport d-none" type="button" disabled>Import CSV</button>
+            <button class="btn btn-primary tableExport d-none" type="button">Export as CSV</button>
+            <button class="btn btn-primary toggleTableRaw d-none" type="button">Toggle View</button>
             <button class="btn btn-primary tableNew" type="button">Add new</button>
             <button class="btn btn-success tableSave" type="button">Save</button>
             <button id="closeConfig" class="btn btn-danger">Close</button>

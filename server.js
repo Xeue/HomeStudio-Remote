@@ -135,8 +135,8 @@ await sleep(1);
 Logs.log(`Singalling server has been started`, ['H', 'SERVER', Logs.g]);
 startPipelines();
 Logs.log(`Pipelines created`, ['H', 'SERVER', Logs.g]);
-startThumbWatch();
-Logs.log(`Thumbnail watcher started`, ['H', 'SERVER', Logs.g]);
+//startThumbWatch();
+//Logs.log(`Thumbnail watcher started`, ['H', 'SERVER', Logs.g]);
 //setInterval(getPush, 10*1000);
 
 try {
@@ -146,17 +146,46 @@ try {
 	Logs.warn('TSL tally could not be started, port in use', error);
 }
 
-UMD.on('message', data => {
-	const breakpoint = /(\\.*?){6}u0000/;
-	const rawumds = JSON.stringify(data.display.text.replace('"','')).split(breakpoint);
-	const umds = rawumds.filter(umd => umd != '\\').map(umd => umd.replace('\"', ''));
+// UMD.on('message', data => { //TALLYMAN
+// 	Logs.debug('umd', data)
+// 	const breakpoint = /(\\.*?){6}u0000/;
+// 	const rawumds = JSON.stringify(data.display.text.replace('"','')).split(breakpoint);
+// 	const umds = rawumds.filter(umd => umd != '\\').map(umd => umd.replace('\"', ''));
+// 	const encodersData = encoders();
+// 	const umdIndex = data.index;
+// 	encodersData.forEach(encoder => {
+// 		if (encoder.Type != "SDI") return;
+// 		if ((encoder.URL - umdIndex) < 0) return;
+// 		if (umds.length < (encoder.URL - umdIndex)) return;
+// 		encoder.Name = umds[encoder.URL - umdIndex];
+// 	})
+// 	const feeds = [];
+// 	encodersData.forEach(encoder => {
+// 		if (encoder.Type != "SDI") return;
+// 		feeds.push({
+// 			"Name": encoder.Name,
+// 			"ID": encoder.ID
+// 		})
+// 	})
+// 	const payload = {
+// 		"command":"rename",
+// 		"feeds": feeds
+// 	}
+// 	Server.sendToAll(payload);
+// 	writeData('Encoders', encodersData);
+// });
+
+UMD.on('message', data => { //CEREBRUM
+	// Logs.debug('umd', data)
+	const umd = data.display.text
+	const id = data.index
+
 	const encodersData = encoders();
-	const umdIndex = data.index;
+
+	
 	encodersData.forEach(encoder => {
 		if (encoder.Type != "SDI") return;
-		if ((encoder.URL - umdIndex) < 0) return;
-		if (umds.length < (encoder.URL - umdIndex)) return;
-		encoder.Name = umds[encoder.URL - umdIndex];
+		if (encoder.URL == id) encoder.Name = umd
 	})
 	const feeds = [];
 	encodersData.forEach(encoder => {
@@ -173,8 +202,6 @@ UMD.on('message', data => {
 	Server.sendToAll(payload);
 	writeData('Encoders', encodersData);
 });
-
-
 
 
 async function exitHandler(crash, error) {
@@ -222,7 +249,7 @@ function newPipeline(input, outputs, ID) {
 	command += `videot. ! queue ! videoconvert ! videoscale ! video/x-raw,height=720,width=1280 ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
 	//command += `videot. ! queue ! videoconvert ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
 	//command += `videot. ! queue ! videoconvert ! ws. \\\n`;
-	command += `videot. ! queue ! videoconvert ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnailsRaw/${ID}_thumb_%d.jpeg \\\n`;
+	command += `videot. ! queue ! videoconvert ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnails/${ID}_thumb.jpeg \\\n`;
 	outputs.forEach(output => {
 		switch (output.type) {
 			case 'SDI':
