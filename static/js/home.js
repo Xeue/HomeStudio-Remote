@@ -17,6 +17,8 @@ templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
 	<td data-type="text" data-key="OutPort" data-value="<%-devices[i].OutPort%>"><%-devices[i].OutPort%></td>
 	<td data-type="text" data-key="OutURL" data-value="<%-devices[i].OutURL%>"><%-devices[i].OutURL%></td>
+	<td data-type="select" data-key="Format" data-value="<%-devices[i].Format%>" data-options="1080,720,576,Native"><%-devices[i].Format%></td>
+	<td data-type="text" data-key="FPS" data-value="<%-devices[i].FPS%>"><%-devices[i].FPS%></td>
     <td>
       <button type="button" class="btn btn-danger editConfig w-50">Edit</button>
       <button type="button" class="btn btn-danger deleteRow w-50">Delete</button>

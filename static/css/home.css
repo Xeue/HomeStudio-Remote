@@ -112,7 +112,7 @@ nav.drag {
 .sourceSelect {
   cursor: pointer;
   overflow: hidden;
-  background-color: rgb(49, 61, 72);
+  background-color: rgb(var(--bs-danger-rgb),var(--bs-bg-opacity,1));
   border: solid 2px rgb(49, 61, 72);
   opacity: 1;
   transition: 0.3s;

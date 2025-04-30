@@ -146,46 +146,17 @@ try {
 	Logs.warn('TSL tally could not be started, port in use', error);
 }
 
-// UMD.on('message', data => { //TALLYMAN
-// 	Logs.debug('umd', data)
-// 	const breakpoint = /(\\.*?){6}u0000/;
-// 	const rawumds = JSON.stringify(data.display.text.replace('"','')).split(breakpoint);
-// 	const umds = rawumds.filter(umd => umd != '\\').map(umd => umd.replace('\"', ''));
-// 	const encodersData = encoders();
-// 	const umdIndex = data.index;
-// 	encodersData.forEach(encoder => {
-// 		if (encoder.Type != "SDI") return;
-// 		if ((encoder.URL - umdIndex) < 0) return;
-// 		if (umds.length < (encoder.URL - umdIndex)) return;
-// 		encoder.Name = umds[encoder.URL - umdIndex];
-// 	})
-// 	const feeds = [];
-// 	encodersData.forEach(encoder => {
-// 		if (encoder.Type != "SDI") return;
-// 		feeds.push({
-// 			"Name": encoder.Name,
-// 			"ID": encoder.ID
-// 		})
-// 	})
-// 	const payload = {
-// 		"command":"rename",
-// 		"feeds": feeds
-// 	}
-// 	Server.sendToAll(payload);
-// 	writeData('Encoders', encodersData);
-// });
-
-UMD.on('message', data => { //CEREBRUM
-	// Logs.debug('umd', data)
-	const umd = data.display.text
-	const id = data.index
-
+UMD.on('message', data => { //TALLYMAN
+	const breakpoint = /(\\.*?){6}u0000/;
+	const rawumds = JSON.stringify(data.display.text.replace('"','')).split(breakpoint);
+	const umds = rawumds.filter(umd => umd != '\\').map(umd => umd.replace('\"', ''));
 	const encodersData = encoders();
-
-	
+	const umdIndex = data.index;
 	encodersData.forEach(encoder => {
 		if (encoder.Type != "SDI") return;
-		if (encoder.URL == id) encoder.Name = umd
+		if ((encoder.URL - umdIndex) < 0) return;
+		if (umds.length < (encoder.URL - umdIndex)) return;
+		encoder.Name = umds[encoder.URL - umdIndex];
 	})
 	const feeds = [];
 	encodersData.forEach(encoder => {
@@ -202,6 +173,34 @@ UMD.on('message', data => { //CEREBRUM
 	Server.sendToAll(payload);
 	writeData('Encoders', encodersData);
 });
+
+// UMD.on('message', data => { //CEREBRUM
+// 	// Logs.debug('umd', data)
+// 	const umd = data.display.text
+// 	const id = data.index
+
+// 	const encodersData = encoders();
+
+	
+// 	encodersData.forEach(encoder => {
+// 		if (encoder.Type != "SDI") return;
+// 		if (encoder.URL == id) encoder.Name = umd
+// 	})
+// 	const feeds = [];
+// 	encodersData.forEach(encoder => {
+// 		if (encoder.Type != "SDI") return;
+// 		feeds.push({
+// 			"Name": encoder.Name,
+// 			"ID": encoder.ID
+// 		})
+// 	})
+// 	const payload = {
+// 		"command":"rename",
+// 		"feeds": feeds
+// 	}
+// 	Server.sendToAll(payload);
+// 	writeData('Encoders', encodersData);
+// });
 
 
 async function exitHandler(crash, error) {
@@ -233,27 +232,45 @@ function clearProcesses() {
 
 
 function newPipeline(input, outputs, ID) {
-	let command = `webrtcsink name=ws meta="meta,name=${ID}" turn-servers="\<\"turn:10.201.0.88:3478\"\>" `;
+	let command = `webrtcsink name=ws meta="meta,name=${ID}" `;
 	switch (input.type) {
 		case 'SDI':
-//			command += `decklinkvideosrc device-number=${input.connector} mode=${input.format} `
-			command += `decklinkvideosrc device-number=${input.connector} skip-first-time=1000000000 ! tee name=videot \\\n`
+			let format = 'height=720,width=1280,'
+			switch (input.format) {
+				case '1080':
+					format = 'height=1080,width=1920,'
+					break;
+				case '720':
+					format = 'height=720,width=1280,'
+					break;
+				case '576':
+					format = 'height=576,width=1024,'
+					break;
+				case 'Native':
+					format = '';
+					break;
+			}
+			command += `decklinkvideosrc name=input${input.connector} device-number=${input.connector} drop-no-signal-frames=1 ! videoconvert ! videoscale ! videorate ! video/x-raw,${format}framerate=${input.fps}/1 ! queue ! tee name=videot \\\n`	
+			command += `decklinkaudiosrc device-number=${input.connector} ! tee name=audiot \\\n`
 			break;
 		case 'SRT':
-			command += `srtsrc uri="${input.url}" ! decodebin ! tee name=videot \\\n`
+			command += `srtsrc uri="${input.url}" wait-for-connection=1 keep-listening=1 ! decodebin ! tee name=decode
+			decode. ! queue ! videoconvert ! tee name=videot
+			decode. ! queue ! tee name=audiot \\\n`
 			break;
 		default:
 			break;
 	}
-	//command += `! videoconvert ! tee name=t \\\n`;
-	command += `videot. ! queue ! videoconvert ! videoscale ! video/x-raw,height=720,width=1280 ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
-	//command += `videot. ! queue ! videoconvert ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
-	//command += `videot. ! queue ! videoconvert ! ws. \\\n`;
-	command += `videot. ! queue ! videoconvert ! videorate ! videoscale ! video/x-raw,height=216,width=384,framerate=1/5 ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnails/${ID}_thumb.jpeg \\\n`;
+
+	command += `videot. ! queue ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnails/${ID}_thumb.jpeg \\\n`;
+	command += `videot. ! queue ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
+	command += `audiot. ! queue ! audioconvert ! opusenc ! ws.audio_%u \\\n`
+
 	outputs.forEach(output => {
 		switch (output.type) {
 			case 'SDI':
-				command += `videot. ! queue ! videoconvert ! decklinkvideosink device-number=${output.connector} mode=${output.format} \\\n`
+				command += `videot. ! queue ! decklinkvideosink device-number=${output.connector} mode=${output.format} \\\n`
+				command += `audiot. ! queue ! audioconvert ! decklinkaudiosink device-number=${output.connector} \\\n`
 				break;
 			case 'SRT':
 				command += `videot. ! queue ! videoconvert ! x264enc tune=zerolatency ! video/x-h264, profile=high ! mpegtsmux ! srtsink uri=${output.url} \\\n`
@@ -269,13 +286,16 @@ function newPipeline(input, outputs, ID) {
 
 function startPipelines() {
 	encoders('SDI').forEach(encoder => {
+		const fps = encoder.FPS ? encoder.FPS : 25;
 		const input = {
 			'type':'SDI',
 			'connector': encoder.URL,
-			'format': '1080p25'
+			'format': encoder.Format,
+			'fps': fps
 		};
 		const outputs = [];
 		if (encoder.OutPort) {
+			Logs.debug(encoder.FPS)
 			outputs.push({
 				'type': 'SDI',
 				'connector': encoder.OutPort,
@@ -288,29 +308,33 @@ function startPipelines() {
 				'url': encoder.OutURL
 			})
 		}
-		Logs.object(outputs);
 		const SDI = newPipeline(input, outputs, String(encoder.ID));
 		pipelines.push(SDI);
-		SDI.on('playing', ()=>Logs.log(`${encoder.Name} is active`, ['C', 'SDISRC', Logs.g]));
-		SDI.on('feedActive', ()=>Logs.log(`${encoder.Name} is recieving SDI`, ['C', 'SDISRC', Logs.g]));
+		SDI.on('playing', ()=>Logs.log(`${encoder.URL} is active`, ['C', 'SDISRC', Logs.g]));
+		SDI.on('feedActive', ()=>Logs.log(`${encoder.URL} is recieving SDI and converting to fps ${fps}`, ['C', 'SDISRC', Logs.g]));
 		SDI.on('stdout', message => Logs.log(message, ['D', 'SDISRC', Logs.c]));
-		SDI.on('stopped', ()=> {
-			Logs.log(`${encoder.Name} has stopped recieving SDI`, ['C', 'SDISRC', Logs.y]);
-			if (!SDI.killed) SDI.restart();
+		SDI.on('stopped', async ()=> {
+			Logs.log(`${encoder.URL} has stopped recieving SDI`, ['C', 'SDISRC', Logs.y]);
+			if (SDI.restarts > 5) await sleep(5)
+			if (SDI.restarts > 20) return SDI.kill()
+			if (!SDI.killed) SDI.start();
 		})
 		SDI.on('killed', ()=> {
-			Logs.log(`${encoder.Name} has been killed`, ['C', 'SDISRC', Logs.r]);
+			Logs.log(`${encoder.URL} has been killed`, ['C', 'SDISRC', Logs.r]);
 			pipelines.splice(pipelines.indexOf(SDI),1);
 		})
 		SDI.start();
 	})
 	encoders('SRT').forEach(encoder => {
+		const fps = encoder.FPS ? encoder.FPS : 25;
 		const input = {
 			'type':'SRT',
-			'url': encoder.URL
+			'url': encoder.URL,
+			'fps': fps
 		};
 		const outputs = [];
 		if (encoder.OutPort) {
+			
 			outputs.push({
 				'type': 'SDI',
 				'connector': encoder.OutPort,
@@ -329,9 +353,11 @@ function startPipelines() {
 		SRT.on('playing', ()=>Logs.log(`${encoder.Name} is active`, ['C', 'SRTSRC', Logs.g]));
 		SRT.on('feedActive', ()=>Logs.log(`${encoder.Name} is recieving SRT`, ['C', 'SRTSRC', Logs.g]));
 		SRT.on('stdout', message => Logs.log(message, ['D', 'SRTSRC', Logs.c]));
-		SRT.on('stopped', ()=> {
+		SRT.on('stopped', async ()=> {
 			Logs.log(`${encoder.Name} has stopped recieving SRT`, ['C', 'SRTSRC', Logs.y]);
-			if (!SRT.killed) SRT.restart();
+			if (SRT.restarts > 5) await sleep(5)
+			if (SRT.restarts > 20) return SRT.kill()
+			if (!SRT.killed) SRT.start();
 		})
 		SRT.on('killed', ()=> {
 			Logs.log(`${encoder.Name} has been killed`, ['C', 'SRTSRC', Logs.r]);
@@ -605,7 +631,8 @@ function loadData(file) {
 				'Type':'SRT',
 				'URL':'srt://IPAddress:3333',
 				'OutPort':1,
-				'OutURL':'srt://IPAddress:9000'
+				'OutURL':'srt://IPAddress:9000',
+				'FPS': 25
 			};
 			break;
 		case 'Decoders':

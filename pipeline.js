@@ -9,9 +9,11 @@ export default class Pipeline extends EventEmitter {
         this.Logs = Logs;
         this.command = command;
         this.process;
+        this.restarts = 0;
         this.state = 'stopped';
         this.active = false;
         this.killed = false;
+        this.restartTimeout;
         this.on('internalState', state => {
             if (state == 'stopped' && this.state == 'stopped') return;
             if (state == 'feedActive' && this.active) return;
@@ -23,18 +25,24 @@ export default class Pipeline extends EventEmitter {
 
     start() {
         if (this.killed) return;
+        this.restarts++;
         const Shell = new _Shell(this.Logs, 'GSTRMR', 'D');
         this.process = Shell.process('gst-launch-1.0 '+this.command, false);
-        this.process.on('stdout', stdout => this.#checkOut(stdout));
-        this.process.on('stderr', stderr => this.#checkOut(stderr));
-        this.process.on('error', error => this.Logs.error(error));
+        this.process.on('stdout', (stdout) => this.#checkOut(stdout));
+        this.process.on('stderr', (stderr) => this.#checkOut(stderr));
+        this.process.on('error', (error) => {
+            this.Logs.error(error);
+            this.emit('internalState', 'stopped')
+        });
         this.process.on('exit', () => this.emit('internalState', 'stopped'));
+        this.restartTimeout = setTimeout(()=>{this.restarts = 0}, 30*1000)
     }
 
     stop() {
         this.active = false;
         this.process.kill();
         this.emit('internalState', 'stopped');
+        clearTimeout(this.restartTimeout);
     }
 
     kill() {
