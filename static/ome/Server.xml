@@ -92,7 +92,7 @@
 			</Names>
 		</Host>
 		<API>
-			<AccessToken>admin:NEPVisions!</AccessToken>
+			<AccessToken>admin:ID0ntKnow!</AccessToken>
 			<CrossDomains>
 				<Url>*</Url>
 			</CrossDomains>

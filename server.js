@@ -22,8 +22,8 @@ const __static = path.resolve(__dirname+"/static");
 
 const logger = new Logs(
 	false,
-	'HomeStudioLogging',
-	path.join(__data, 'HomeStudioData'),
+	'WebSourcesLogging',
+	path.join(__data, 'WebSourcesData'),
 	'D',
 	false
 )
@@ -59,14 +59,14 @@ let configLoaded = false;
 	await createWindow();
 
 	{ /* Config */
-		logger.printHeader('HomeStudio');
+		logger.printHeader('WebSources');
 		config.require('omeType', {
 			'docker':'Docker',
 			'native':'Installed Locally',
 			'none':'Not Installed'
-		}, 'Home Studio Remote requires \'Oven Media Engine\' to be running to function, this can be done via docker on windows or installed localy if using linux.\nIf you select Docker Home Studio will try and install the image automatically.\n\nInstallation type:');
+		}, 'WebSources Remote requires \'Oven Media Engine\' to be running to function, this can be done via docker on windows or installed localy if using linux.\nIf you select Docker WebSources will try and install the image automatically.\n\nInstallation type:');
 		{
-			config.info('omeNative', 'The Server.xml file created for Home Studio Remote can be found at IP:PORT/ome/Server.xml', ['omeType', 'native']);
+			config.info('omeNative', 'The Server.xml file created for WebSources Remote can be found at IP:PORT/ome/Server.xml', ['omeType', 'native']);
 			config.info('omeDocker', `If setup of OME has failed try using this command manually in your command prompt: <code class="bg-secondary card d-block m-1 my-3 p-1 px-2 text-light position-static">${dockerCommand}</code>`, ['omeType', 'docker']);
 		}
 		config.require('host', [], 'What is the IP/host of Oven Media Engine? (normally this machines IP)');
@@ -86,9 +86,9 @@ let configLoaded = false;
 		}
 
 		config.default('port', 8080);
-		config.default('systemName', 'Home Studio');
+		config.default('systemName', 'WebSources');
 		config.default('loggingLevel', 'W');
-		config.default('homestudioKey', '');
+		config.default('websourcesKey', '');
 		config.default('defaultLayout', 'basic');
 		config.default('allowLowres', true);
 		config.default('allowSearch', true);
@@ -97,14 +97,14 @@ let configLoaded = false;
 		config.default('printPings', false);
 		config.default('advancedConfig', false);
 		config.default('devMode', false);
-		config.default('homestudioKey', '');
+		config.default('websourcesKey', '');
 		config.default('omeType', 'docker');
 		config.default('host', 'localhost');
 		config.default('reconnectTimeoutSeconds', 4);
 
 
-		if (!await config.fromFile(path.join(__data, 'HomeStudioData', 'config.conf'))) {
-			await config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData', 'config.conf'), configQuestion, configDone);
+		if (!await config.fromFile(path.join(__data, 'WebSourcesData', 'config.conf'))) {
+			await config.fromAPI(path.join(app.getPath('documents'), 'WebSourcesData', 'config.conf'), configQuestion, configDone);
 		}
 
 		if (config.get('loggingLevel') == 'D' || config.get('loggingLevel') == 'A') {
@@ -113,27 +113,27 @@ let configLoaded = false;
 
 		logger.setConf(
 			config.get('createLogFile'),
-			'HomeStudioLogging',
-			path.join(__data, 'HomeStudioData'),
+			'WebSourcesLogging',
+			path.join(__data, 'WebSourcesData'),
 			config.get('loggingLevel'),
 			config.get('debugLineNum')
 		)
 
 		logger.log('Running version: v'+version, ['H', 'SERVER', logger.g]);
-		logger.log(`Logging to: ${path.join(__data, 'HomeStudioData', 'Logs')}`, ['H', 'SERVER', logger.g]);
-		logger.log(`Config saved to: ${path.join(__data, 'HomeStudioData', 'config.conf')}`, ['H', 'SERVER', logger.g]);
+		logger.log(`Logging to: ${path.join(__data, 'WebSourcesData', 'Logs')}`, ['H', 'SERVER', logger.g]);
+		logger.log(`Config saved to: ${path.join(__data, 'WebSourcesData', 'config.conf')}`, ['H', 'SERVER', logger.g]);
 		config.print();
 		config.userInput(async command => {
 			switch (command) {
 			case 'config':
-				await config.fromCLI(path.join(__data, 'HomeStudioData', 'config.conf'));
+				await config.fromCLI(path.join(__data, 'WebSourcesData', 'config.conf'));
 				if (config.get('loggingLevel') == 'D' || config.get('loggingLevel') == 'A') {
 					config.set('debugLineNum', true);
 				}
 				logger.setConf({
 					'createLogFile': config.get('createLogFile'),
-					'LogsFileName': 'HomeStudioLogging',
-					'configLocation': path.join(__data, 'HomeStudioData'),
+					'LogsFileName': 'WebSourcesLogging',
+					'configLocation': path.join(__data, 'WebSourcesData'),
 					'loggingLevel': config.get('loggingLevel'),
 					'debugLineNum': config.get('debugLineNum')
 				});
@@ -196,7 +196,7 @@ async function setUpApp() {
 	ipcMain.on('config', (event, message) => {
 		switch (message) {
 		case 'start':
-			config.fromAPI(path.join(app.getPath('documents'), 'HomeStudioData','config.conf'), configQuestion, configDone);
+			config.fromAPI(path.join(app.getPath('documents'), 'WebSourcesData','config.conf'), configQuestion, configDone);
 			break;
 		case 'stop':
 			logger.log('Not implemeneted yet: Cancle config change');
@@ -210,7 +210,7 @@ async function setUpApp() {
 	});
 
 	const autoLaunch = new AutoLaunch({
-		name: 'Home Studio',
+		name: 'WebSources',
 		isHidden: true,
 	});
 	autoLaunch.isEnabled().then(isEnabled => {
@@ -364,12 +364,12 @@ async function startDocker() {
 		logger.log('Docker is installed, attempting to start docker', ['C', 'DOCKER', logger.p]);
 		const dockerStart = await shell.run('Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
 		if (dockerStart.hasErrors) {
-			logger.log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logger.r]);
+			logger.log('Docker could not be started automatically, try running websources as an admin user', ['C', 'DOCKER', logger.r]);
 			return;
 		}
 		const dockerNewFullVersion = await shell.run("docker version");
 		if (dockerNewFullVersion.hasErrors) {
-			logger.log('Docker could not be started automatically, try running homestudio as an admin user', ['C', 'DOCKER', logger.r]);
+			logger.log('Docker could not be started automatically, try running websources as an admin user', ['C', 'DOCKER', logger.r]);
 			return;
 		}
 		logger.log('Docker started', ['C', 'DOCKER', logger.p]);
@@ -418,7 +418,7 @@ function expressRoutes(expressApp) {
 	function getHomeOptions() {return {
 		systemName: config.get('systemName'),
 		version: version,
-		homestudioKey: config.get('homestudioKey'),
+		websourcesKey: config.get('websourcesKey'),
 		encoders: encoders(),
 		decoders: decoders(),
 		layouts: layouts(),
@@ -569,7 +569,7 @@ async function doMessage(msgObj, socket) {
 		socket.send('Received meta');
 		break;
 	case 'setKey':
-		config.set('homestudioKey', payload.key);
+		config.set('websourcesKey', payload.key);
 		break;
 	case 'register':
 		logger.log('Client registered', 'A');
@@ -616,7 +616,7 @@ async function doMessage(msgObj, socket) {
 
 function loadData(file) {
 	try {
-		const dataRaw = fs.readFileSync(`${__data}/HomeStudioData/data/${file}.json`);
+		const dataRaw = fs.readFileSync(`${__data}/WebSourcesData/data/${file}.json`);
 		try {
 			return JSON.parse(dataRaw);
 		} catch (error) {
@@ -721,16 +721,16 @@ function loadData(file) {
 		default:
 			break;
 		}
-		if (!fs.existsSync(`${__data}/HomeStudioData/data/`)){
-			fs.mkdirSync(`${__data}/HomeStudioData/data/`);
+		if (!fs.existsSync(`${__data}/WebSourcesData/data/`)){
+			fs.mkdirSync(`${__data}/WebSourcesData/data/`);
 		}
-		fs.writeFileSync(`${__data}/HomeStudioData/data/${file}.json`, JSON.stringify(fileData, null, 4));
+		fs.writeFileSync(`${__data}/WebSourcesData/data/${file}.json`, JSON.stringify(fileData, null, 4));
 		return fileData;
 	}
 }
 function writeData(file, data) {
 	try {
-		fs.writeFileSync(`${__data}/HomeStudioData/data/${file}.json`, JSON.stringify(data, undefined, 2));
+		fs.writeFileSync(`${__data}/WebSourcesData/data/${file}.json`, JSON.stringify(data, undefined, 2));
 	} catch (error) {
 		logObj(`Cloud not write the file ${file}.json, do we have permission to access the file?`, error, 'E');
 	}
@@ -754,7 +754,7 @@ async function startPush(id) {
 	try {
 		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:startPush`,{
 			method: 'POST',
-			headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
+			headers: {"Authorization": "Basic "+Buffer.from("admin:ID0ntKnow!").toString('base64')},
 			body: JSON.stringify(body)
 		})
 		const jsonRpcResponse = await response.json();
@@ -792,7 +792,7 @@ async function stopPush(id) {
 	try {
 		const response = await fetch(`http://${config.get('host')}:8081/v1/vhosts/default/apps/app:stopPush`,{
 			method: 'POST',
-			headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')},
+			headers: {"Authorization": "Basic "+Buffer.from("admin:ID0ntKnow!").toString('base64')},
 			body: JSON.stringify(body)
 		})
 		const jsonRpcResponse = await response.json();
@@ -825,7 +825,7 @@ async function stopPush(id) {
 async function getPush(id) {
 	const postOptions = {
 		method: 'POST',
-		headers: {"Authorization": "Basic "+Buffer.from("admin:NEPVisions!").toString('base64')}
+		headers: {"Authorization": "Basic "+Buffer.from("admin:ID0ntKnow!").toString('base64')}
 	}
 	if (id) postOptions.body = JSON.stringify({"id": "push_decoder_"+id});
 	logger.log(`Getting pushes from to: http://${config.get('host')}:8081/v1/vhosts/default/apps/app:pushes`, 'A');

@@ -1,9 +1,9 @@
 {
-	"name": "HomeStudio",
-	"short_name": "HomeStudio",
+	"name": "WebSources",
+	"short_name": "WebSources",
 	"theme_color": "rgb(49, 61, 72)",
 	"background_color": "rgb(33, 37, 41)",
-	"description" : "Home Studio Remote camera viewer",
+	"description" : "WebSources Remote camera viewer",
 	"display": "standalone",
 	"orientation": "",
 	"scope": "/",

@@ -11,7 +11,7 @@ templates.encoder = `<% for(i = 0; i < devices.length; i++) { %>
   <tr data-index="<%=i%>" data-id="<%-devices[i].ID%>" data-template="encoder">
     <td data-type="text" data-key="Name" data-value="<%-devices[i].Name%>"><%-devices[i].Name%></td>
 	<td data-type="readonly" data-key="ID" data-value="<%-devices[i].ID%>"><%-devices[i].ID%></td>
-	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,Local Encoder,Homestudio SRT,Homestudio WebRTC"><%-devices[i].Type%></td>
+	<td data-type="select" data-key="Type" data-value="<%-devices[i].Type%>" data-options="Select,Local Encoder,WebSources SRT,WebSources WebRTC"><%-devices[i].Type%></td>
 	<td data-type="text" data-key="URL" data-value="<%-devices[i].URL%>"><%-devices[i].URL%></td>
 	<td data-type="readonly" data-key="Encoder" data-value="<%-devices[i].Encoder%>">
 		<% if (devices[i].Encoder !== undefined) { %>
@@ -253,10 +253,10 @@ $(document).ready(function() {
 			configSave();
 		} else if ($trg.hasClass('deleteRow')) {
 			configRowDelete($trg);
-		} else if ($trg.is('#homestudioKeySet')) {
+		} else if ($trg.is('#websourcesKeySet')) {
 			localConnection.send({
 				"command":"setKey",
-				"key":$('#homestudioKey').val()
+				"key":$('#websourcesKey').val()
 			});
 		} else if ($trg.hasClass('sourceSelect')) {
 			openPlayer($trg);
@@ -1148,7 +1148,7 @@ function openPlayer($element) {
 
 	switch (streamType) {
 		case 'Local Encoder':
-		case 'Homestudio WebRTC':
+		case 'WebSources WebRTC':
 			let resolution = "";
 			if (allowLowres && !$('#nav-one-tab').hasClass('active')) {
 				resolution = "_lowres";
@@ -1189,10 +1189,10 @@ function openPlayer($element) {
 				}
 			})
 			break;
-		case 'Homestudio SRT':
+		case 'WebSources SRT':
 			const options = {
 				container: `${streamName.replace(/ /g, '-')}-player`,
-				stream_url: streamURL + '?wmsAuthSign=' + homestudioKey,
+				stream_url: streamURL + '?wmsAuthSign=' + websourcesKey,
 				splash_screen: '/img/holding.png',
 				width: 'parent',
 				height: 'parent',
