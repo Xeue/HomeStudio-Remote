@@ -1,2 +1,2 @@
-# HomeStudio-Remote
-HomeStudio running localy
+# WebSources-Remote
+WebSources running localy

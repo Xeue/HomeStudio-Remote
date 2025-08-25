@@ -13,13 +13,13 @@ import _TSL5 from 'tsl-umd-v5';
 
 const version = Package.version;
 const __dirname = path.resolve(path.dirname(decodeURI(new URL(import.meta.url).pathname))).replace('C:\\','');
-const __data = path.join(homedir(), 'Documents', 'HomeStudioData');
+const __data = path.join(homedir(), 'Documents', 'WebSourcesData');
 const __static = path.resolve(__dirname+"/static");
 
 const UMD = new _TSL5();
 const Logs = new _Logs(
 	false,
-	'HomeStudioLogging',
+	'WebSourcesLogging',
 	__data,
 	'D',
 	false
@@ -47,7 +47,7 @@ process.stdin.resume();
 process.on('uncaughtException', error => exitHandler(true, error));
 
 { /* Config */
-	Logs.printHeader('HomeStudio');
+	Logs.printHeader('WebSources');
 	Config.require('host', [], 'What is the IP/host of this machine');
 	Config.require('port', [], 'What port shall the server use');
 	Config.require('portSSL', [], 'What port shall the server use for SSL');
@@ -68,10 +68,10 @@ process.on('uncaughtException', error => exitHandler(true, error));
 
 	Config.default('port', 8080);
 	Config.default('portSSL', 443);
-	Config.default('systemName', 'Home Studio');
+	Config.default('systemName', 'Web Sources');
 	Config.default('trebmalAddress', 'localhost:8081');
 	Config.default('loggingLevel', 'W');
-	Config.default('homestudioKey', '');
+	Config.default('websourcesKey', '');
 	Config.default('defaultLayout', 'basic');
 	Config.default('allowLowres', true);
 	Config.default('allowSearch', true);
@@ -80,7 +80,7 @@ process.on('uncaughtException', error => exitHandler(true, error));
 	Config.default('printPings', false);
 	Config.default('advancedConfig', false);
 	Config.default('devMode', false);
-	Config.default('homestudioKey', '');
+	Config.default('websourcesKey', '');
 	Config.default('host', 'localhost');
 	Config.default('reconnectTimeoutSeconds', 4);
 
@@ -95,7 +95,7 @@ process.on('uncaughtException', error => exitHandler(true, error));
 	
 	Logs.setConf({
 		createLogFile: Config.get('createLogFile'),
-		logsFileName: 'HomeStudioLogging',
+		logsFileName: 'WebSourcesLogging',
 		configLocation: __data,
 		loggingLevel: Config.get('loggingLevel'),
 		debugLineNum: Config.get('debugLineNum')
@@ -114,7 +114,7 @@ process.on('uncaughtException', error => exitHandler(true, error));
 			}
 			Logs.setConf({
 				'createLogFile': Config.get('createLogFile'),
-				'LogsFileName': 'HomeStudioLogging',
+				'LogsFileName': 'WebSourcesLogging',
 				'configLocation': __data,
 				'loggingLevel': Config.get('loggingLevel'),
 				'debugLineNum': Config.get('debugLineNum')
@@ -262,7 +262,7 @@ function newPipeline(input, outputs, ID) {
 			break;
 	}
 
-	command += `videot. ! queue ! jpegenc ! multifilesink location=/home/nep/HomeStudio-Remote/static/thumbnails/${ID}_thumb.jpeg \\\n`;
+	command += `videot. ! queue ! jpegenc ! multifilesink location=/home/nep/WebSources-Remote/static/thumbnails/${ID}_thumb.jpeg \\\n`;
 	command += `videot. ! queue ! vp8enc deadline=1 target-bitrate=2000000 ! ws. \\\n`;
 	command += `audiot. ! queue ! audioconvert ! opusenc ! ws.audio_%u \\\n`
 
@@ -420,7 +420,7 @@ function expressRoutes(expressApp) {
 	function getHomeOptions() {return {
 		systemName: Config.get('systemName'),
 		version: version,
-		homestudioKey: Config.get('homestudioKey'),
+		websourcesKey: Config.get('websourcesKey'),
 		encoders: encoders(),
 		layouts: layouts(),
 		host: Config.get('host'),
@@ -586,7 +586,7 @@ async function doMessage(msgObj, socket) {
 		socket.send('Received meta');
 		break;
 	case 'setKey':
-		Config.set('homestudioKey', payload.key);
+		Config.set('websourcesKey', payload.key);
 		break;
 	case 'register':
 		Logs.log('Client registered', 'A');
